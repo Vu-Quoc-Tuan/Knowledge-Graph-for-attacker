@@ -1,0 +1,15 @@
+schema_version: 1
+predicates:
+  CHILD_OF:
+    symmetric: false
+    dimension_required: false
+    allowed_dimensions: []
+  SIMILAR_TO:
+    symmetric: true
+    dimension_required: true
+    allowed_dimensions:
+      - mechanism
+      - input_vector
+      - precondition
+      - impact
+      - detection_strategy

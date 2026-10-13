@@ -1,0 +1,3 @@
+# Testing for XML Injection (XXE)
+
+Verify whether external XML entities can be resolved to achieve local file disclosure or out-of-band SSRF.

@@ -1,0 +1,1 @@
+{"cveMetadata": {"cveId": "CVE-2026-88001", "state": "PUBLISHED"}, "containers": {"cna": {"title": "Vulnerability CVE-2026-88001", "descriptions": [{"lang": "en", "value": "SQL injection in query endpoint leading to unauthorized data disclosure."}], "problemTypes": []}}}

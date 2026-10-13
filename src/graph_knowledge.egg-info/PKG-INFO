@@ -1,0 +1,254 @@
+Metadata-Version: 2.4
+Name: graph-knowledge
+Version: 0.1.0
+Summary: Provenance-preserving security testing knowledge graph
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: neo4j>=6.2.0
+Requires-Dist: openai>=2.50.0
+Requires-Dist: pydantic>=2.13.4
+Requires-Dist: pyyaml>=6.0.2
+Requires-Dist: requests>=2.34.2
+
+# Evolving Vulnerability CKG
+
+## V2 research path
+
+`src/ckg` is the provenance-first implementation of the evolving CKG design.
+It keeps MITRE CWE canonical, reifies CVE↔CWE mappings, retains every source
+record/evidence span, and discovers semantic — not executable — scenarios.
+The legacy modules below remain a compatibility view while migration is
+verified; they are not the v2 source of truth.
+
+The offline foundation can be checked without downloading anything:
+
+```bash
+.venv/bin/python scripts/verify_canonical_catalogs.py
+.venv/bin/python scripts/verify_legacy_v2_migration.py
+.venv/bin/python -m pytest tests/unit tests/graph tests/integration tests/reasoning tests/regression tests/evaluation -q
+```
+
+### Module-1 Unified CLI (`ckg`)
+
+The installed package exposes the `ckg` entrypoint for v2 operations:
+
+```bash
+ckg build       # Build canonical CWE/CAPEC graph from verified snapshots
+ckg serve       # Serve Module-1 HTTP API backed by Neo4j or in-memory
+ckg analyze     # Analyze a CVE and output the Section 55 semantic analysis contract
+ckg ingest      # Ingest structured CVE records or canonical CWE catalogs
+ckg feedback    # Record execution feedback and update Bayesian Beta posteriors
+ckg rebuild     # Rebuild learned CWE context profiles and co-occurrence graphs
+```
+
+### Bootstrap Scripts (`scripts/`)
+
+- `scripts/bootstrap_cwe.py`: Snapshot pinned official CWE catalog & schema
+- `scripts/bootstrap_capec.py`: Snapshot pinned official CAPEC catalog & schema
+- `scripts/bootstrap_wstg.py`: Snapshot & import OWASP WSTG testing methodology cases
+- `scripts/bootstrap_patt.py`: Snapshot & import PayloadsAllTheThings methodology docs
+- `scripts/bootstrap_cves.py`: Snapshot & import CVE records from CVE Services or NVD API 2.0
+
+V2 key contracts:
+
+- canonical CWE/CAPEC snapshots are pinned by release and SHA-256;
+- direct `CVE → CWE` is forbidden in v2; mappings are `WeaknessAssertion`
+  with a source/evidence span;
+- unknown environment/configuration stays `UNKNOWN`, not false;
+- Module 1 scenarios have no endpoint, parameter, payload or callback binding;
+- feedback updates only a scoped Beta belief bucket and does not mutate
+  canonical CWE.
+
+The dependency-light v2 inspection API exposes `/cves/{id}`, local subgraphs,
+weaknesses, historical neighbors, semantic scenarios, CWE profiles, ingestion
+and execution feedback. Its case-file UI is served at `/ui/v2` by the v2 API
+handler. See [the architecture index](docs/architecture/00-overview.md) and
+[the migration plan](docs/superpowers/plans/2026-09-14-evolving-vuln-ckg-migration.md).
+
+## Legacy compatibility view
+
+Kho này xây property graph cho CWE, OpenCRE, OWASP WSTG,
+PayloadsAllTheThings và weakness nội bộ. Mục tiêu là bảo toàn nguồn gốc và ranh
+giới tin cậy: một liên kết tương đồng có thể gợi ý cách thiết kế test, nhưng
+không tự động biến payload hoặc scenario của weakness khác thành tri thức của
+weakness mới.
+
+API, MCP server và runtime thực thi tấn công **không nằm trong phiên bản này**.
+Kho tạo và duyệt tri thức test; nó không tự gửi payload vào mục tiêu.
+
+## Mô hình tin cậy
+
+| Bậc | Ý nghĩa | Có tạo scenario local? |
+|---|---|---|
+| Definition | Weakness local có định nghĩa và provenance | Không |
+| Relationship | `CHILD_OF` hoặc `SIMILAR_TO` đã duyệt | Không; chỉ tạo reference |
+| Payload | Payload byte-exact, riêng weakness, đã test và duyệt | Chưa |
+| Oracle | Oracle đặc tả observable/success criteria, đã duyệt | Có, nếu payload cũng đạt |
+| Validated material | Validation record có target/execution/evidence digest | Khẳng định material đã test |
+
+`SIMILAR_TO` bắt buộc có `dimension`. Dimension cho biết phần nào được phỏng
+theo: `mechanism`, `input_vector`, `precondition`, `impact`, hoặc
+`detection_strategy`. Card trả riêng:
+
+- `assertedRelations`: quan hệ đã duyệt và provenance của nó;
+- `referenceMethodologies` và `referenceScenarios`: gợi ý có
+  `applicability: unknown`, kèm relation/dimension đã phơi ra reference;
+- `scenarios`: chỉ scenario thực sự `TARGETS` weakness được hỏi.
+
+Rút relation bằng event `retract` giữ nguyên audit history, nhưng domain edge và
+mọi reference do edge đó phơi ra biến mất ở lần **reset rebuild** kế tiếp. Build
+MERGE-only sẽ phát hiện edge cũ còn tồn tại và yêu cầu `--reset`, thay vì để
+reference stale tồn tại âm thầm.
+
+Mười slice CWE authoritative là bất đối xứng có chủ đích: scenario của chúng
+vẫn có `testReady: true` với detection signal `strategy_hint`. Chỉ scenario của
+weakness local mới bắt buộc oracle spec `accepted` riêng cho
+weakness/family/technology.
+
+## Cài đặt
+
+Yêu cầu Python 3.12+, Docker Compose và Git. Tạo cấu hình:
+
+```bash
+cp .env.example .env
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+```
+
+Không commit `.env`. Các API key, cache embedding, manifest local và dữ liệu
+Neo4j đều bị ignore.
+
+## Build có provenance
+
+Live build luôn phải ghi manifest; response body được lưu content-addressed ở
+`SOURCE_SNAPSHOT_ROOT/objects/<sha256>`:
+
+```bash
+.venv/bin/python build.py --dry-run \
+  --write-manifest artifacts/source-manifest.local.json
+```
+
+Replay cấm network và fail nếu URL không có trong manifest, object thiếu, hash
+sai hoặc byte length sai. Sau build, replay còn phải khớp stage summaries,
+graph counts và SHA-256 canonical của toàn bộ node/relationship; manifest cũ
+không khớp semantic graph hiện tại bị từ chối trước mọi reset write:
+
+```bash
+.venv/bin/python build.py --dry-run \
+  --source-manifest artifacts/source-manifest.local.json
+```
+
+Build Neo4j bình thường là MERGE-only. Reset dùng hai pha: dựng và validate toàn
+bộ graph trong RAM, sau đó delete + replay node/relation trong **một Neo4j
+transaction**. Nếu bất kỳ write nào fail, Neo4j rollback về graph cũ:
+
+```bash
+.venv/bin/python build.py --reset \
+  --source-manifest artifacts/source-manifest.local.json
+```
+
+Không dùng `--reset` trên graph quan trọng nếu chưa chủ động cho phép thay thế
+materialized view. Việc build schema/constraint xảy ra ngoài data-replacement
+transaction; chúng là idempotent và không xóa dữ liệu.
+
+## Workflow weakness mới
+
+### 1. Definition
+
+Thêm entry vào `registry/weaknesses.yaml`. Nếu entry được ingest từ URL, CLI lưu
+raw bytes vào `registry/source_snapshots/objects/` và ghi `source_snapshot`,
+`source_hash`, `source_excerpt`; commit snapshot và registry trước khi build:
+
+```bash
+.venv/bin/python -m ai_producers.cli ingest-url \
+  --url https://example.org/advisory --write
+```
+
+### 2. Relation scaffold
+
+AI chỉ tạo pending proposal:
+
+```bash
+.venv/bin/python -m ai_producers.cli relations \
+  --weakness LAB-101 --top-k 5 --write
+.venv/bin/python -m proposals.cli list --status pending
+.venv/bin/python -m proposals.cli approve REL-PROP-... \
+  --actor reviewer --comment 'mechanism evidence checked'
+```
+
+Human có thể request changes/revise/reject/retract. AI proposal bắt buộc giữ
+retrieval score type, candidate rank/set size, embedding model và canonical text
+hashes. Approval không copy scenario/payload/oracle từ CWE liên quan.
+
+### 3. Payload riêng và validation
+
+Nguồn payload phải là file UTF-8 tracked, committed trong `HEAD`, không symlink
+và không dirty. Manual và AI dùng cùng validator:
+
+```bash
+.venv/bin/python -m ai_producers.cli payloads \
+  --weakness LAB-101 \
+  --family-key prompt.context_break \
+  --family-name 'Prompt context break' \
+  --technology OpenAI \
+  --source-ref evidence/lab-101-payloads.md --write
+```
+
+Sau khi test trong lab, record validation cần target, execution và evidence ref
+kèm SHA-256 cho từng artifact:
+
+```bash
+.venv/bin/python -m proposals.payload_cli record-validation PAY-PROP-... \
+  --revision 1 --result passed --environment isolated-lab \
+  --target-ref evidence/target.json --target-hash sha256:... \
+  --execution-ref evidence/execution.json --execution-hash sha256:... \
+  --observed-outcome 'controlled marker was emitted' \
+  --evidence-ref evidence/result.json --evidence-hash sha256:... \
+  --actor reviewer
+.venv/bin/python -m proposals.payload_cli approve PAY-PROP-... \
+  --actor reviewer --comment 'byte-exact payload and evidence checked'
+```
+
+Local committed artifact phải đúng hash. Remote validation artifact được phép
+chỉ khi là URL tuyệt đối và có digest explicit; URL trần không đủ provenance.
+Payload giữ riêng ba trục: `origin` (`patt`, `local_manual`, `ai_extracted`,
+`rule_extracted`), `curationStatus` và `validationStatus`. Vì thế PATT mặc định
+là `upstream_curated` nhưng `untested`; payload local chỉ thành
+`human_reviewed`/`tested` sau đúng workflow validation + approval.
+
+### 4. Oracle riêng
+
+Thêm oracle vào `registry/oracle_specs.yaml`. Các field cốt lõi gồm
+`observable_kind`, `observation`, `success_criteria`, `source_ref`,
+`source_hash`, `reviewed_by`, `reviewed_at`, weakness/family và technology phù
+hợp. `status` phải là `accepted`. Oracle source cũng phải là blob sạch đã
+commit ở `HEAD` và đúng hash.
+
+Build chỉ compose scenario local khi cùng weakness/family/technology có:
+
+1. payload proposal `accepted` sau validation `passed`; và
+2. oracle spec `accepted`.
+
+Nếu thiếu một gate, definition, relation và reference vẫn query được nhưng
+`scenarios` local rỗng. Đây là fail-closed có chủ đích.
+
+## Kiểm thử
+
+```bash
+.venv/bin/python -m pytest -q
+.venv/bin/python -m py_compile $(rg --files -g '*.py')
+```
+
+Test Neo4j transaction dùng service riêng ở cổng 7688:
+
+```bash
+docker compose --profile test up -d --wait neo4j-test
+NEO4J_TEST_URI=bolt://localhost:7688 \
+NEO4J_TEST_USER=neo4j \
+NEO4J_TEST_PASSWORD=test-password \
+  .venv/bin/python -m pytest tests/test_neo4j_replace.py -q
+```
+
+Các warning `scenarios_missing_methodology`,
+`scenarios_missing_detection_signal`, `unclassified_table_spans` và `over_cap`
+là coverage gaps được in công khai, không phải bằng chứng stage đã đầy đủ.

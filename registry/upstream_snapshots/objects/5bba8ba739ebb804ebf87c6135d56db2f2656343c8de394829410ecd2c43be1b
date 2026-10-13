@@ -1,0 +1,3 @@
+# Testing for Bypassing Authentication Schema
+
+Verify whether critical endpoints can be accessed without valid credentials through parameter tampering, route manipulation, or missing authentication gates.

@@ -1,0 +1,9 @@
+# Testing XML Entity Processing
+
+## Blind out-of-band detection through DNS
+
+Use an out-of-band DNS callback when response behavior is blind.
+
+## General notes
+
+This text is not a payload.

@@ -1,0 +1,1 @@
+{"cveMetadata": {"cveId": "CVE-2026-9999", "state": "PUBLISHED"}, "containers": {"cna": {"title": "Test Custom Ingestion", "descriptions": [{"lang": "en", "value": "Test vulnerability for CKG UI verification"}], "problemTypes": [{"descriptions": [{"lang": "en", "cweId": "CWE-79", "description": "CWE-79"}]}]}}}

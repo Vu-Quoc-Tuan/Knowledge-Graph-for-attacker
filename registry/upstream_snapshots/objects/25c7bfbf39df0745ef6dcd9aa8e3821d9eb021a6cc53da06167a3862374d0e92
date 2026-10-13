@@ -1,0 +1,10 @@
+# XXE Injection
+
+## Description
+XML External Entity injection.
+
+## Out-of-Band XXE
+Testing out-of-band callback over DNS channel.
+
+## Filter Bypass
+Bypass techniques for XML entity filters.

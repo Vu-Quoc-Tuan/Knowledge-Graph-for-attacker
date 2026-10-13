@@ -1,0 +1,58 @@
+[project]
+name = "graph-knowledge"
+version = "0.1.0"
+description = "Provenance-preserving security testing knowledge graph"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "neo4j>=6.2.0",
+    "openai>=2.50.0",
+    "pydantic>=2.13.4",
+    "pyyaml>=6.0.2",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+ckg = "ckg.__main__:main"
+ckg-evaluate-history = "ckg.evaluation.cli:main"
+
+[build-system]
+# Keep isolated builds reproducible. Restricted/offline builds use the explicit
+# no-isolation target documented in README and Makefile.
+requires = ["setuptools==84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["config"]
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = [
+    "ckg*",
+    "ai_producers*",
+    "db*",
+    "ingest*",
+    "proposals*",
+    "provenance*",
+    "retrieval*",
+    "sandbox*",
+    "schema*",
+    "ui*",
+    "utils*",
+]
+namespaces = false
+
+[tool.setuptools.package-data]
+ckg = [
+    "graph/neo4j/*.cypher",
+    "config/*.yaml",
+    "registry/*.yaml",
+    "ui/v2/*",
+]
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]

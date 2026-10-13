@@ -1,0 +1,1 @@
+{"cveMetadata": {"cveId": "CVE-2026-33333", "state": "PUBLISHED"}, "containers": {"cna": {"title": "Command Injection in RouterOS", "descriptions": [{"lang": "en", "value": "RouterOS 7.2 allows attackers to execute arbitrary shell commands via the ping host parameter."}], "problemTypes": [{"descriptions": [{"lang": "en", "cweId": "CWE-78", "description": "CWE-78"}]}]}}}

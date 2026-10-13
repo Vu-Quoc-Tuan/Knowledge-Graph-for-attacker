@@ -1,0 +1,38 @@
+schema_version: 1
+techniques:
+  TECH-BLIND:
+    name: Blind
+    aliases: [blind, inferential]
+  TECH-OUT_OF_BAND:
+    name: OutOfBand
+    aliases: [out-of-band, oob, callback]
+  TECH-ERROR_BASED:
+    name: ErrorBased
+    aliases: [error-based, error based]
+  TECH-TIME_BASED:
+    name: TimeBased
+    aliases: [time-based, time based, time delay]
+channels:
+  CHANNEL-DNS:
+    name: DNS
+    aliases: [dns]
+  CHANNEL-HTTP:
+    name: HTTP
+    aliases: [http, https]
+oracles:
+  ORACLE-RESPONSE:
+    name: Response observation
+    aliases: [response]
+  ORACLE-EXTERNAL-INTERACTION:
+    name: External interaction
+    aliases: [callback, outbound dns, outbound http]
+input_surfaces:
+  INPUT-QUERY-PARAMETER:
+    name: Query parameter
+    aliases: [query parameter]
+  INPUT-HTTP-HEADER:
+    name: HTTP header
+    aliases: [http header]
+  INPUT-JSON-BODY:
+    name: JSON body
+    aliases: [json body]

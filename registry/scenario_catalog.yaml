@@ -1,0 +1,577 @@
+# Declarative CKG Scenario Knowledge Catalog
+# Contains canonical testing variants, CWE mappings, surface & tech detectors, step templates, and PoC templates.
+schema_version: 1
+
+# User-facing prose is data, not rendering logic.  Keep this section localized
+# and versioned with the scenario catalog so packaged and source-tree runs use
+# the same wording.
+templates:
+  title:
+    login_param: "⟦base_name⟧ qua Form Đăng Nhập [⟦param_list⟧]"
+    param: "⟦base_name⟧ qua tham số [⟦param_list⟧]"
+    service: "⟦base_name⟧ trên dịch vụ [⟦service⟧]"
+    component: "⟦base_name⟧ tại ⟦component⟧"
+  defaults:
+    input_parameter: "tham số đầu vào '<INPUT_PARAM>'"
+    web_surface: "giao diện web"
+    web_database_summary: "Web / CSDL"
+    database: "CSDL"
+    system_service: "dịch vụ hệ thống"
+    service: "dịch vụ"
+    neighbor: "lân cận"
+  description:
+    sqli:
+      time_order: >-
+        Thực hiện kiểm thử SQL Injection suy diễn (Blind) trong mệnh đề ORDER BY bằng cách bơm biểu thức gây trễ thời gian vào ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) trên nền tảng ⟦summary⟧. Quan sát độ trễ phản hồi mà không cần thoát nháy chuỗi hay bẻ gãy điều kiện logic để trích xuất dữ liệu CSDL.
+      time: >-
+        Thực hiện kiểm thử SQL Injection suy diễn (Blind) bằng cách bơm hàm gây trễ thời gian vào ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) trên nền tảng ⟦summary⟧, quan sát độ trễ phản hồi để xác nhận và trích xuất dữ liệu CSDL.
+      auth_bypass: >-
+        Khai thác lỗi chèn câu lệnh SQL vào ⟦component⟧ (⟦endpoint⟧) qua các trường xác thực ⟦param⟧ nhằm bẻ gãy biểu thức kiểm tra điều kiện (Boolean Always True), đăng nhập trái phép mà không cần mật khẩu hợp lệ.
+      order: >-
+        Khai thác lỗi chèn câu lệnh SQL trực tiếp vào mệnh đề ORDER BY qua ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) trên nền tảng ⟦summary⟧ bằng cách truyền trực tiếp biểu thức hàm gây lỗi (Error-Based) mà không dùng dấu nháy đơn, ép ⟦database⟧ in thông báo lỗi cú pháp chứa dữ liệu nhạy cảm.
+      error: >-
+        Khai thác lỗi chèn câu lệnh SQL vào ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) trên nền tảng ⟦summary⟧ nhằm ép hệ quản trị CSDL (⟦database⟧) in thông báo lỗi cú pháp chứa dữ liệu nhạy cảm.
+    credentials: "Sử dụng cặp tài khoản / mật khẩu quản trị mặc định hoặc gán cứng trong firmware của ⟦service⟧ để chiếm quyền truy cập mà không cần bẻ khóa."
+    command_injection: "Tiêm các ký tự điều khiển phân tách lệnh shell vào ⟦param⟧ tại endpoint ⟦endpoint⟧ để ép máy chủ thực thi các lệnh hệ điều hành tùy ý."
+    path_traversal: "Bơm chuỗi điều hướng thư mục ('../') vào ⟦param⟧ tại endpoint ⟦endpoint⟧ để đọc trái phép các tệp tin cấu hình hoặc tệp hệ thống nhạy cảm."
+    file_upload: "Lợi dụng sơ hở kiểm tra đường dẫn hoặc loại tệp tại ⟦component⟧ (⟦endpoint⟧) qua ⟦param⟧ để tải lên hoặc ghi đè trái phép tệp tin trên máy chủ (⟦summary⟧), có thể dẫn đến thực thi mã từ xa (RCE)."
+    xss: "Chèn mã JavaScript độc hại vào ⟦param⟧ tại endpoint ⟦endpoint⟧, mã script sẽ được phản xạ ra trình duyệt nạn nhân và thực thi trong phiên người dùng."
+    ssrf: "Lợi dụng chức năng nạp dữ liệu từ xa để ép máy chủ gửi yêu cầu mạng tới các địa chỉ nội bộ (localhost, 169.254.169.254) hoặc máy chủ kiểm soát bên ngoài."
+    container_escape: "Khai thác rò rỉ bộ mô tả tệp tin (File Descriptor) hoặc đặc quyền của tiến trình trong container để vượt thoát khỏi không gian tên (namespace) và truy cập filesystem máy chủ (⟦endpoint⟧)."
+    access_control: "Khai thác sơ hở thiếu kiểm tra quyền truy cập (Missing Authorization / IDOR) tại ⟦component⟧ (⟦endpoint⟧) qua ⟦param⟧ để thao tác hoặc xem dữ liệu của người dùng/tài nguyên khác mà không được phép."
+    authentication_bypass: "Lợi dụng thiếu sót trong quy trình xác thực hoặc bỏ qua kiểm tra phiên tại ⟦component⟧ (⟦endpoint⟧) qua ⟦param⟧ để truy cập tài nguyên quản trị mà không cần đăng nhập."
+    csrf: "Tạo yêu cầu giả mạo chuyển trạng thái gửi tới ⟦component⟧ (⟦endpoint⟧) qua ⟦param⟧ nhằm lừa trình duyệt của nạn nhân đã đăng nhập thực thi hành động ngoài ý muốn mà không có CSRF token bảo vệ."
+    ssti: "Chèn các biểu thức khuôn mẫu (Template Expressions) vào ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) để ép công cụ kết xuất mẫu phía máy chủ thực thi mã hoặc trích xuất biến môi trường."
+    deserialization: "Gửi chuỗi dữ liệu nhị phân hoặc chuỗi đối tượng tuần tự hóa đã bị thao túng (gadget chain) vào ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) nhằm đạt được thực thi mã từ xa."
+    info_disclosure: "Khai thác sơ hở để thu thập dữ liệu nhạy cảm hoặc cấu trúc hệ thống bị lộ ra tại ⟦component⟧ (⟦endpoint⟧) qua ⟦param⟧."
+    cryptographic_failures: "Khai thác việc sử dụng thuật toán mật mã yếu, khởi tạo số ngẫu nhiên kém hoặc truyền tải dữ liệu nhạy cảm không mã hóa qua mạng."
+    memory_corruption: "Gửi khối dữ liệu có kích thước vượt ngưỡng kiểm tra vào ⟦param⟧ tại ⟦endpoint⟧ nhằm ghi đè vùng nhớ (Buffer Overflow / Out-of-bounds), có thể gây sập tiến trình (DoS) hoặc chiếm quyền điều khiển."
+    dos_resource_exhaustion: "Gửi payload có kích thước mảng hoặc độ phức tạp cấu trúc dữ liệu vượt giới hạn vào ⟦param⟧ tại ⟦component⟧ (⟦endpoint⟧) nhằm kích hoạt độ phức tạp tính toán O(n^2) làm cạn kiệt CPU hoặc bộ nhớ, dẫn đến từ chối dịch vụ (Denial of Service)."
+    default: "Kiểm thử bảo mật dựa trên phương pháp luận chuẩn cho điểm yếu ⟦category⟧ tại ⟦endpoint⟧."
+  steps:
+    param_named: "tham số '⟦parameter⟧'"
+    param_neighbor: "tham số đầu vào '<INPUT_PARAM>' (chưa định danh trong CVE - gợi ý từ lân cận: ⟦samples⟧)"
+    param_missing: "tham số đầu vào '<INPUT_PARAM>' (chưa định danh trong CVE - cần fuzzing)"
+    sqli:
+      time_order_payload: "Bơm biểu thức gây trễ thời gian trực tiếp vào mệnh đề ORDER BY qua ⟦parameter⟧ (payload: ⟦payload⟧, không dùng dấu nháy đơn hay toán tử AND/OR)."
+      time_order_baseline: "Bước 1 (Định vị & Đo baseline): Gửi HTTP ⟦method⟧ tới '⟦endpoint⟧' với Content-Type '⟦content_type⟧' để đo thời gian phản hồi thông thường (~100-300ms). Nhận diện ⟦parameter⟧ nằm trực tiếp trong mệnh đề ORDER BY."
+      time_mssql: "Bơm lệnh trễ T-SQL của Microsoft SQL Server vào ⟦parameter⟧ (payload: 1'; WAITFOR DELAY '0:0:5'--)."
+      time_postgresql: "Bơm hàm pg_sleep của PostgreSQL vào ⟦parameter⟧ (payload: 1'; SELECT pg_sleep(5)--)."
+      time_generic: "Bơm hàm sleep CSDL vào ⟦parameter⟧ (MySQL: test' OR (SELECT 1 FROM (SELECT(SLEEP(5)))a)-- -; PostgreSQL: test'; SELECT pg_sleep(5)--; MSSQL: test'; WAITFOR DELAY '0:0:5'--)."
+      time_baseline: "Bước 1 (Định vị & Đo baseline): Gửi HTTP ⟦method⟧ tới '⟦endpoint⟧' với Content-Type '⟦content_type⟧' để đo thời gian phản hồi thông thường (~100-300ms)."
+      time_measure: "Bước 2 (Bơm Payload gây trễ): ⟦payload⟧"
+      time_analyze: "Bước 3 (Đo lường & Phân tích): Đo thời gian máy chủ trả về response; nếu kéo dài >= 5 giây, xác nhận điểm chèn mã thành công."
+      time_extract: "Bước 4 (Trích xuất dữ liệu nhị phân): Dùng kỹ thuật tìm kiếm nhị phân (Binary Search) trên hàm SUBSTRING() và ASCII() để đọc tuần tự từng ký tự dữ liệu."
+      auth_baseline: "Bước 1 (Định vị Form Xác Thực): Gửi yêu cầu HTTP ⟦method⟧ tới endpoint đăng nhập '⟦endpoint⟧' kiểm tra các trường tiếp nhận (⟦parameters⟧)."
+      auth_payload: "Bước 2 (Chèn Payload Bypass): Nhập chuỗi logic luôn đúng: ' OR 1=1-- - hoặc admin' -- - vào ⟦parameter⟧, mật khẩu điền ngẫu nhiên."
+      auth_verify: "Bước 3 (Đánh giá phản hồi): Kiểm tra mã trạng thái HTTP 302 Redirect hoặc Cookie phiên (Set-Cookie) báo hiệu đăng nhập thành công vào trang quản trị."
+      error_order_baseline: "Bước 1 (Định vị mục tiêu & Ngữ cảnh ORDER BY): Gửi HTTP ⟦method⟧ tới endpoint '⟦endpoint⟧' (⟦content_type⟧) để xác định ⟦parameter⟧. Nhận diện tham số được nối trực tiếp vào mệnh đề ORDER BY của câu lệnh SQL."
+      error_order_payload: "Bước 2 (Bơm hàm khai thác lỗi trong ORDER BY): Chèn trực tiếp biểu thức gây lỗi ⟦payload⟧ vào ⟦parameter⟧ (chèn trực tiếp biểu thức SQL, không dùng dấu nháy đơn thoát chuỗi hay toán tử nối AND/OR để tránh lỗi cú pháp)."
+      error_extract: "Bước 3 (Khai thác lỗi trích xuất): Ép ⟦database⟧ in phiên bản hoặc tên cơ sở dữ liệu trong nội dung lỗi HTTP."
+      error_verify: "Bước 4 (Kiểm tra phản hồi): Xác nhận sự xuất hiện của các chuỗi lỗi CSDL chuẩn (⟦database⟧ syntax error, conversion error)."
+      error_mssql: "Bơm hàm khai thác lỗi ⟦payload⟧ của Microsoft SQL Server vào ⟦parameter⟧."
+      error_postgresql: "Bơm hàm khai thác lỗi ⟦payload⟧ của PostgreSQL vào ⟦parameter⟧."
+      error_generic: "Bơm payload gây lỗi vào ⟦parameter⟧ (MySQL: extractvalue(1, concat(0x7e, database())); PostgreSQL: 1=CAST((SELECT version()) AS INT); MSSQL: 1=CONVERT(int, (SELECT @@version)))."
+      error_baseline: "Bước 1 (Định vị mục tiêu): Gửi HTTP ⟦method⟧ tới endpoint '⟦endpoint⟧' (⟦content_type⟧) để xác định ⟦parameter⟧."
+      error_payload: "Bước 2 (Bơm hàm khai thác lỗi): ⟦payload⟧"
+      error_table_extract: "Bước 3 (Khai thác lỗi trích xuất): Ép ⟦database⟧ in phiên bản hoặc tên bảng trong nội dung lỗi HTTP."
+    credentials:
+      service: "Bước 1 (Quét & Kết nối dịch vụ): Kiểm tra dịch vụ '⟦service⟧' đang hoạt động trên cổng ⟦port⟧."
+      defaults: "Bước 2 (Thử nghiệm tài khoản mặc định): Thử đăng nhập với các cặp thông tin gán cứng của nhà sản xuất (ví dụ: root:root, admin:admin, root:123456)."
+      verify: "Bước 3 (Chiếm quyền & Xác thực): Xác nhận phiên đăng nhập thành công và kiểm tra mức đặc quyền truy cập hệ thống."
+    command_injection:
+      locate: "Bước 1 (Định vị & Dò quét tham số): Xác định ⟦parameter⟧ tại '⟦endpoint⟧' được chuyển tiếp đến trình thực thi lệnh hệ điều hành (nếu chưa định danh, tiến hành fuzzing từ các tên trường phổ biến)."
+      payload: "Bước 2 (Chèn chuỗi phân tách lệnh): Bơm payload phân tách lệnh: test; id; whoami (hoặc toán tử bypass: $(id), `id`, test | whoami) để kiểm tra phản xạ trực tiếp, hoặc payload gây trễ: test; sleep 5 để kiểm tra mù (Blind)."
+      verify: "Bước 3 (Xác minh kết quả đa kênh): Kiểm tra phản hồi xem có in chuỗi định danh đặc quyền 'uid=0(root)' [In-band], hoặc đo độ trễ phản hồi của máy chủ kéo dài >= 5 giây khi thực thi lệnh sleep [Blind Time-based]."
+    path_traversal:
+      locate: "Bước 1 (Xác định tham số tệp): Xác định ⟦parameter⟧ nhận đường dẫn tệp tại '⟦endpoint⟧'."
+      payload: "Bước 2 (Điều hướng thư mục): Gửi chuỗi traversal leo thang thư mục: ../../../../../etc/passwd hoặc ..%2f..%2f..%2fetc%2fpasswd vào ⟦parameter⟧."
+      verify: "Bước 3 (Kiểm tra tệp hệ thống): Kiểm tra nội dung response có chứa nội dung tệp nhạy cảm (như 'root:x:0:0:')."
+    file_overwrite:
+      authenticated: " kèm phiên đăng nhập hợp lệ (tối thiểu quyền: ⟦role⟧)"
+      locate: "Bước 1 (Xác định tham số điều hướng đường dẫn): Xác định ⟦parameter⟧ tại '⟦endpoint⟧' tiếp nhận giá trị đường dẫn tệp tin hệ thống."
+      payload: "Bước 2 (Gửi payload duyệt đường dẫn): Truyền chuỗi path traversal (ví dụ: ../../../../wp-config.php)⟦auth_step⟧ vào ⟦parameter⟧ để ghi đè tệp tin mục tiêu."
+      verify: "Bước 3 (Xác nhận kết quả ghi đè): Kiểm tra phản hồi HTTP và xác nhận tệp tin mục tiêu trên máy chủ đã bị thay đổi nội dung hoặc gây lỗi hệ thống."
+    file_upload:
+      locate: "Bước 1 (Định vị đầu vào tệp): Xác định ⟦parameter⟧ tại '⟦endpoint⟧' tiếp nhận tham số đường dẫn tệp hoặc dữ liệu tải lên."
+      payload: "Bước 2 (Tải lên tệp thử nghiệm): Đẩy tệp tin giả lập chứa mã script hoặc tệp tin tĩnh (ví dụ: test_overwrite.txt) qua phương thức HTTP ⟦method⟧ (⟦content_type⟧)."
+      verify: "Bước 3 (Xác minh tồn tại tệp): Gửi yêu cầu HTTP GET tới đường dẫn công khai của tệp tải lên để xác nhận tệp đã được lưu trữ thành công trên máy chủ."
+    xss:
+      locate: "Bước 1 (Định vị tham số phản xạ): Gửi giá trị kiểm tra định danh duy nhất vào ⟦parameter⟧ tại '⟦endpoint⟧'."
+      payload: "Bước 2 (Bơm đoạn mã JavaScript): Bơm payload chứa mã script: <script>alert(document.domain)</script> vào ⟦parameter⟧."
+      verify: "Bước 3 (Kiểm tra ngữ cảnh DOM): Đánh giá phản hồi HTTP xem đoạn mã script có được giải mã và phản xạ nguyên vẹn mà không qua hàm mã hóa HTML hay không."
+    ssrf:
+      locate: "Bước 1 (Xác định đầu vào URL): Định vị ⟦parameter⟧ tại '⟦endpoint⟧' dùng để gửi yêu cầu lấy tài nguyên từ xa."
+      payload: "Bước 2 (Bơm địa chỉ nội bộ): Truyền địa chỉ mạng nội bộ (http://127.0.0.1 hoặc dịch vụ Cloud Metadata: http://169.254.169.254) vào ⟦parameter⟧."
+      verify: "Bước 3 (Phân tích phản hồi máy chủ): Đọc phản hồi trả về xem máy chủ có phản hồi dữ liệu nhạy cảm của hạ tầng nội bộ hay không."
+    container_escape:
+      inspect: "Bước 1 (Khảo sát File Descriptors): Kiểm tra các bộ mô tả tệp tin /proc/self/fd/ được tiến trình chia sẻ từ host."
+      payload: "Bước 2 (Khai thác đường dẫn vượt thoát): Truy cập filesystem máy chủ thông qua file descriptor bị rò rỉ tại '⟦endpoint⟧'."
+      verify: "Bước 3 (Xác nhận quyền kiểm soát máy chủ): Đọc /etc/shadow hoặc tạo shell root bên ngoài container để khẳng định vượt thoát thành công."
+    access_control:
+      session: "Bước 1 (Thiết lập phiên người dùng A): Đăng nhập với tài khoản có quyền hợp lệ và gửi yêu cầu tới '⟦endpoint⟧' với ⟦parameter⟧."
+      payload: "Bước 2 (Thao túng định danh IDOR): Thay đổi ⟦parameter⟧ sang định danh của người dùng B hoặc tài nguyên cấp cao hơn."
+      verify: "Bước 3 (Kiểm tra rò rỉ dữ liệu): Xác nhận phản hồi HTTP có trả về dữ liệu của người dùng B mà không bị chặn lỗi 403 Forbidden."
+    authentication_bypass:
+      locate: "Bước 1 (Định vị tham số kiểm soát phiên): Kiểm tra ⟦parameter⟧ tại '⟦endpoint⟧'."
+      payload: "Bước 2 (Bỏ qua cơ chế xác minh): Truyền các cờ ghi đè trạng thái (ví dụ: DontCheckLogin=1) hoặc thao túng token xác thực vào ⟦parameter⟧."
+      verify: "Bước 3 (Xác nhận quyền truy cập): Kiểm tra mã trạng thái HTTP 200 OK và nội dung trang quản trị để xác nhận truy cập thành công."
+    csrf:
+      locate: "Bước 1 (Xác định yêu cầu chuyển đổi trạng thái): Xác định ⟦parameter⟧ tại '⟦endpoint⟧' thực hiện hành động nhạy cảm (đổi mật khẩu, chuyển khoản)."
+      payload: "Bước 2 (Xây dựng trang khai thác tự động): Tạo trang HTML độc hại tự động kích hoạt form submit HTTP ⟦method⟧ mang theo Cookie của nạn nhân."
+      verify: "Bước 3 (Kích hoạt yêu cầu): Lừa trình duyệt nạn nhân gửi yêu cầu và xác nhận trạng thái tài khoản nạn nhân đã bị thay đổi thành công."
+    ssti:
+      locate: "Bước 1 (Định vị đầu vào template): Xác định ⟦parameter⟧ tại '⟦endpoint⟧' được ghép nối trực tiếp vào template render."
+      payload: "Bước 2 (Bơm biểu thức tính toán): Gửi payload toán học: ${7*7} hoặc {{7*7}} vào ⟦parameter⟧."
+      verify: "Bước 3 (Xác nhận kết quả tính toán): Kiểm tra phản hồi HTTP xem có xuất hiện kết quả '49' hay không để xác nhận thực thi template."
+    deserialization:
+      locate: "Bước 1 (Định vị endpoint nạp đối tượng): Xác định ⟦parameter⟧ tại '⟦endpoint⟧' nhận chuỗi dữ liệu nhị phân hoặc chuỗi Base64 tuần tự hóa."
+      payload: "Bước 2 (Gửi đối tượng tuần tự hóa độc hại): Gửi gadget chain đã chế tạo vào ⟦parameter⟧ để kích hoạt hàm hủy (deserialization gadget)."
+      verify: "Bước 3 (Xác minh thực thi): Đo lường độ trễ thời gian hoặc kiểm tra tín hiệu Out-of-band callback (DNS/HTTP) để xác nhận RCE."
+    info_disclosure:
+      locate: "Bước 1 (Gửi yêu cầu thăm dò): Gửi yêu cầu với các tham số điều khiển như ⟦parameter⟧ tới '⟦endpoint⟧'."
+      payload: "Bước 2 (Khai thác lỗi/debug): Ép ứng dụng hiển thị stack trace, biến môi trường hoặc file cấu hình qua các giá trị ngoại lệ."
+      verify: "Bước 3 (Trích xuất dữ liệu nhạy cảm): Phân tích phản hồi HTTP để thu thập khóa bí mật (API Keys), mật khẩu CSDL hoặc cấu trúc mã nguồn."
+    cryptographic_failures:
+      locate: "Bước 1 (Phân tích kênh truyền & Thuật toán): Kiểm tra phiên bản giao thức TLS và cách xử lý tham số ⟦parameter⟧ tại '⟦endpoint⟧'."
+      payload: "Bước 2 (Đo lường tính ngẫu nhiên / Kênh bản rõ): Phân tích tính ngẫu nhiên của token hoặc kiểm tra lưu lượng truyền tải nhạy cảm không mã hóa."
+      verify: "Bước 3 (Xác nhận lỗ hổng mật mã): Chứng minh khả năng đoán trước token phiên hoặc giải mã thông tin nhạy cảm thu thập trên mạng."
+    memory_corruption:
+      locate: "Bước 1 (Xác định kích thước bộ đệm): Truyền dữ liệu có độ dài tăng dần vào ⟦parameter⟧ tại '⟦endpoint⟧'."
+      payload: "Bước 2 (Gửi chuỗi dữ liệu vượt ngưỡng): Gửi khối dữ liệu kích thước lớn (cyclic pattern, 4096+ byte) để gây tràn vùng nhớ bộ đệm."
+      verify: "Bước 3 (Phát hiện sập tiến trình): Ghi nhận mã trạng thái HTTP 502/503 hoặc tiến trình bị terminate bởi tín hiệu SIGSEGV."
+    dos_resource_exhaustion:
+      locate: "Bước 1 (Đo baseline hiệu năng): Gửi yêu cầu thông thường tới '⟦endpoint⟧' (⟦parameter⟧) đo thời gian xử lý và tải CPU."
+      payload: "Bước 2 (Bơm cấu trúc dữ liệu phức tạp): Gửi payload chứa mảng kích thước cực lớn hoặc cấu trúc lồng nhau vào ⟦parameter⟧."
+      verify: "Bước 3 (Ghi nhận suy giảm hiệu năng): Đo thời gian phản hồi kéo dài bất thường hoặc mã trạng thái 504 Gateway Timeout, xác nhận DoS thành công."
+    default:
+      locate: "Bước 1: Khảo sát dịch vụ và cấu hình điểm vào tại '⟦endpoint⟧'."
+      payload: "Bước 2: Gửi gói tin thử nghiệm kiểm tra tính hợp lệ của ⟦parameter⟧."
+      verify: "Bước 3: Đánh giá phản hồi và so khớp với oracle mong đợi."
+  poc:
+    curl:
+      timing_note: "[+] Thời gian phản hồi: %{time_total}s"
+    binding:
+      missing_parameter: "# [LƯU Ý]: Mô tả CVE không định danh cụ thể tên tham số đầu vào (missing binding: input_binding)."
+      resolve_parameter: "# Cần xác định <INPUT_PARAM> (qua fuzzing/dò quét) trước khi gửi payload thực tế."
+      missing_endpoint: "# [LƯU Ý]: Mô tả CVE không định danh cụ thể đường dẫn endpoint (missing binding: target_endpoint)."
+      resolve_endpoint: "# Cần thay thế <TARGET_ENDPOINT> bằng đường dẫn thực tế của ứng dụng."
+      parameter_example: "'⟦parameter⟧' (từ ⟦origin⟧)"
+      parameter_neighbors: "# - Tham số từ các CVE tương đồng trong đồ thị: ⟦examples⟧"
+      endpoint_example: "'⟦endpoint⟧' (từ ⟦origin⟧)"
+      endpoint_neighbors: "# - Endpoint từ các CVE tương đồng trong đồ thị: ⟦examples⟧"
+      neighbor_header: "# [GỢI Ý TỪ LÁNG GIỀNG ĐỒ THỊ (HISTORICAL NEIGHBORS)]:"
+      sqli_auth: "# [LƯU Ý XÁC THỰC]: Nếu endpoint yêu cầu quyền đăng nhập (Session/Token), bổ sung: -H 'Authorization: Bearer <TOKEN>' hoặc -b 'session=<COOKIE>'"
+      pre_auth: "# [ĐIỀU KIỆN TIÊN QUYẾT]: Lỗ hổng theo CVE không yêu cầu xác thực trước (Pre-Auth). Nếu hệ thống mục tiêu yêu cầu phiên để truy cập chức năng/endpoint, cần truyền kèm Cookie phiên đăng nhập."
+    sqli:
+      time_order_header: "# [PoC] Khai thác Blind SQL Injection (ORDER BY) gây trễ 5 giây cho ⟦vulnerability_id⟧ (⟦summary⟧)\n"
+      time_header: "# [PoC] Khai thác Blind SQL Injection gây trễ 5 giây cho ⟦vulnerability_id⟧ (⟦summary⟧)\n"
+      time_alternate: |-
+
+        # [Kiểm tra bổ sung trên tham số liên quan '⟦parameter⟧']:
+        curl -i -s -w "\n[+] Thời gian phản hồi: %{time_total}s\n" \
+          -X GET "http://<TARGET_HOST>⟦endpoint⟧⟦separator⟧⟦parameter⟧=⟦payload⟧"
+      time_db_alternates_order: |-
+
+        # [Biến thể CSDL khác nếu không phải MySQL (ORDER BY)]:
+        # - PostgreSQL: (SELECT 1 FROM pg_sleep(5))
+        # - SQL Server: (SELECT CASE WHEN 1=1 THEN (WAITFOR DELAY '0:0:5') ELSE 0 END)
+      time_db_alternates: |-
+
+        # [Biến thể CSDL khác nếu không phải MySQL]:
+        # - PostgreSQL: test%27%3B%20SELECT%20pg_sleep(5)--
+        # - SQL Server: test%27%3B%20WAITFOR%20DELAY%20%270%3A0%3A5%27--
+      time_post_alternate: |-
+
+        # [Phương Án Thay Thế: POST JSON Body (nếu endpoint là REST API / Data Ingestion)]:
+        curl -i -s -w "\n[+] Thời gian phản hồi: %{time_total}s\n" \
+          -X POST "http://<TARGET_HOST>⟦endpoint⟧" \
+          -H "Content-Type: application/json" \
+          -d '{"⟦parameter⟧": "test'\'' OR (SELECT 1 FROM (SELECT(SLEEP(5)))a)-- -"}'
+      auth_header: "# [PoC] Vượt qua cơ chế xác thực (Authentication Bypass) cho ⟦vulnerability_id⟧\n"
+      error_order_header: "# [PoC] Khai thác Error-Based SQL Injection (ORDER BY) cho ⟦vulnerability_id⟧ (⟦summary⟧)\n"
+      error_header: "# [PoC] Khai thác Error-Based SQL Injection cho ⟦vulnerability_id⟧ (⟦summary⟧)\n"
+      error_alternate: |-
+
+        # [Kiểm tra bổ sung trên tham số liên quan '⟦parameter⟧']:
+        curl -i -s -X GET "http://<TARGET_HOST>⟦endpoint⟧⟦separator⟧⟦parameter⟧=⟦payload⟧"
+      error_db_alternates_order: |-
+
+        # [Biến thể CSDL khác nếu không phải MySQL (ORDER BY)]:
+        # - PostgreSQL: CAST((SELECT version()) AS INT)
+        # - SQL Server: (SELECT 1 FROM (SELECT CONVERT(int, @@version))a)
+      error_db_alternates: |-
+
+        # [Biến thể CSDL khác nếu không phải MySQL]:
+        # - PostgreSQL: test%27%20AND%201%3DCAST((SELECT%20version())%20AS%20INT)--
+        # - SQL Server: test%27%20AND%201%3DCONVERT(int%2C%20(SELECT%20%40%40version))--
+      error_post_alternate: |-
+
+        # [Phương Án Thay Thế: POST JSON Body (nếu endpoint là REST API / Data Ingestion)]:
+        curl -i -s -X POST "http://<TARGET_HOST>⟦endpoint⟧" \
+          -H "Content-Type: application/json" \
+          -d '{"⟦parameter⟧": "test'\'' AND extractvalue(1, concat(0x7e, database()))-- -"}'
+    credentials:
+      ftp_header: "# [PoC] Kiểm tra đăng nhập FTP với tài khoản mặc định cho ⟦vulnerability_id⟧\n"
+      ftp_alternate: "# Hoặc kết nối trực tiếp qua lệnh ftp:\n"
+      default_header: "# [PoC] Thử nghiệm đăng nhập tài khoản quản trị mặc định cho ⟦vulnerability_id⟧\n"
+    command:
+      json_inband: "# [Phương Án 1: Khai thác Trực Tiếp In-band (nếu phản hồi trả về output lệnh)]\n# [PoC] Khai thác OS Command Injection cho ⟦vulnerability_id⟧\n"
+      json_blind: "# [Phương Án 2: Khai thác Mù Blind / Time-based (nếu lệnh chạy ngầm, đo thời gian trễ)]\n"
+      form_inband: "# [Phương Án 1: Khai thác Trực Tiếp In-band]\n# [PoC] Khai thác OS Command Injection cho ⟦vulnerability_id⟧\n"
+      form_blind: "# [Phương Án 2: Khai thác Mù Blind / Time-based (đo thời gian phản hồi)]\n"
+      get_auth_inband: "# [Phương Án 1: Khai thác Trực Tiếp In-band]\n# [PoC] Khai thác OS Command Injection cho ⟦vulnerability_id⟧\n"
+      get_auth_blind: "# [Phương Án 2: Khai thác Mù Blind / Time-based (đo thời gian trễ)]\n"
+      get_inband: "# [Phương Án 1: Khai thác Trực Tiếp In-band]\n# [PoC] Khai thác OS Command Injection cho ⟦vulnerability_id⟧\n"
+      get_blind: "# [Phương Án 2: Khai thác Mù Blind / Time-based (đo thời gian trễ)]\n"
+    path_traversal:
+      header: "# [PoC] Khai thác Path Traversal đọc tệp /etc/passwd cho ⟦vulnerability_id⟧\n"
+    file_upload:
+      overwrite_header: "# [PoC] Khai thác Ghi Đè Tệp Tin (Path Traversal / Overwrite) cho ⟦vulnerability_id⟧\n# Bơm đường dẫn tệp tin vào ⟦parameter⟧ để ghi đè tệp nhạy cảm trên máy chủ:\n"
+      multipart_header: "# [PoC] Thử nghiệm File Upload / Overwrite qua multipart POST cho ⟦vulnerability_id⟧\n"
+      default_header: "# [PoC] Thử nghiệm Arbitrary File Overwrite cho ⟦vulnerability_id⟧\n"
+    xss:
+      post_header: "# [PoC] Thử nghiệm XSS qua yêu cầu POST cho ⟦vulnerability_id⟧\n"
+      get_header: "# [PoC] Thử nghiệm Reflected XSS cho ⟦vulnerability_id⟧\n"
+    ssrf:
+      header: "# [PoC] Thử nghiệm SSRF truy xuất metadata nội bộ cho ⟦vulnerability_id⟧\n"
+    container_escape:
+      body: "# [PoC] Kiểm tra rò rỉ File Descriptor vượt thoát container cho ⟦vulnerability_id⟧\n# 1. Liệt kê các file descriptor được mở trong tiến trình khách:\n"
+      step_two: "# 2. Truy cập filesystem máy chủ qua file descriptor trỏ ra ngoài gốc host (ví dụ fd 7 hoặc 8):\n"
+      step_three: "# 3. Khởi tạo shell trực tiếp trên host namespace:\n"
+    access_control:
+      header: "# [PoC] Kiểm tra Broken Access Control / IDOR cho ⟦vulnerability_id⟧\n"
+      step_one: "# Bước 1: Gửi yêu cầu với định danh của phiên hợp lệ\n"
+      step_two: "# Bước 2: Đổi ⟦parameter⟧ sang định danh của nạn nhân/quản trị viên khác (1002):\n"
+    authentication_bypass:
+      header: "# [PoC] Thử nghiệm bỏ qua xác thực (Authentication Bypass) cho ⟦vulnerability_id⟧\n"
+    csrf:
+      header: "<!-- [PoC] Trang HTML tự động gửi khai thác CSRF cho ⟦vulnerability_id⟧ -->\n"
+    ssti:
+      header: "# [PoC] Thử nghiệm Server-Side Template Injection (SSTI) cho ⟦vulnerability_id⟧\n"
+      standard: "# Thử nghiệm biểu thức tính toán chuẩn:\n"
+      alternate: "# Hoặc biểu thức khuôn mẫu Jinja2 / Twig:\n"
+    deserialization:
+      header: "# [PoC] Thử nghiệm Insecure Deserialization cho ⟦vulnerability_id⟧\n"
+    info_disclosure:
+      header: "# [PoC] Kiểm tra rò rỉ dữ liệu nhạy cảm cho ⟦vulnerability_id⟧\n"
+    cryptographic_failures:
+      header: "# [PoC] Kiểm tra giao thức bảo mật và mật mã yếu cho ⟦vulnerability_id⟧\n"
+    memory_corruption:
+      header: "# [PoC] Kiểm tra tràn bộ đệm (Memory Corruption / Buffer Overflow) cho ⟦vulnerability_id⟧\n"
+    dos:
+      algorithmic_header: "# [PoC] Kiểm thử Algorithmic Complexity DoS qua mảng ⟦parameter⟧ lớn cho ⟦vulnerability_id⟧\n"
+      algorithmic_payload: "# Tạo payload JSON chứa mảng ⟦parameter⟧ với số lượng lớn phần tử trùng lặp kích hoạt O(n^2) CPU spike:\n"
+      algorithmic_send: "# Gửi payload kích hoạt quá tải CPU tới endpoint xử lý key import:\n"
+      resource_header: "# [PoC] Kiểm thử Resource Exhaustion / Denial of Service cho ⟦vulnerability_id⟧\n"
+      resource_payload: "# Bơm cấu trúc mảng tải lượng cực lớn vào ⟦parameter⟧ để đo lường độ trễ CPU:\n"
+    default:
+      header: "# [PoC] Kiểm thử tự động cho ⟦vulnerability_id⟧\n"
+
+surface_detectors:
+  login:
+    display_name: "Form Đăng Nhập"
+    endpoint_keywords: ["login", "signin", "doctorlogin"]
+    param_keywords: ["password", "pswd", "passwd", "pwd"]
+    text_patterns: ["\\blogin\\s+(?:form|page|screen|endpoint|portal|action)\\b"]
+  renderer:
+    display_name: "Trình Kết Xuất Dữ Liệu (Content/Markdown Renderer)"
+    keywords: ["renderer", "markdown", "template", "bbcode", "parser"]
+  file_overwrite:
+    display_name: "Chức Năng Xử Lý Đường Dẫn / Ghi Đè Tệp Tin"
+    text_patterns: ["\\bfile path validation\\b", "\\bpath validation\\b", "\\bpath traversal\\b", "\\barbitrary file overwrite\\b"]
+  upload:
+    display_name: "Chức Năng Tải Lên Tệp Tin"
+    keywords: ["upload", "attachment", "avatar", "file_upload"]
+  api:
+    display_name: "Giao Diện Dữ Liệu (Data API)"
+    keywords: ["getdataofjson", "json", "api/", "/api", "rest", "graphql", "rpc"]
+  search:
+    display_name: "Chức Năng Tìm Kiếm / Tra Cứu"
+    keywords: ["search", "find", "query", "filter", "keyword"]
+    param_keywords: ["q", "keyword"]
+  container:
+    display_name: "Môi Trường Container Runtime"
+    keywords: ["runc", "container", "docker", "libcontainer", "cgroup", "namespace", "podman"]
+  order_by:
+    param_keywords: [
+      "orderby", "order_by", "order", "sort", "sort_by", "sort_dir",
+      "dir", "sort_order", "sortorder", "ordering", "sortfield",
+      "sort_column", "sortcol", "sortkey", "direction"
+    ]
+    text_patterns: ["\\border\\s+by\\b", "\\bsort\\s+by\\b", "\\bsorting\\s+parameter\\b"]
+  generic:
+    display_name: "Yêu Cầu HTTP Ứng Dụng"
+
+tech_detectors:
+  backends:
+    PHP: [".php", "wordpress", "drupal", "joomla", "filepress", "wuzhicms"]
+    Java: [".jsp", ".do", "spring", "struts", "java"]
+    Python: [".py", "django", "flask", "python"]
+    "Node.js": ["node", "express", ".js"]
+    "ASP.NET": [".asp", "iis", "dotnet", ".net"]
+  databases:
+    PostgreSQL: ["postgres", "pgsql"]
+    Oracle: ["oracle", "ora-"]
+    "Microsoft SQL Server": ["mssql", "sql server"]
+    SQLite: ["sqlite"]
+
+categories:
+  SQLI:
+    cwe_ids: ["CWE-89", "CWE-564", "CWE-943"]
+    variants:
+      - id_suffix: "error_based"
+        name: "Khai Thác SQL Injection (Dạng Lỗi - Error Based)"
+        order_by_name: "Khai Thác ORDER BY SQL Injection (Dạng Lỗi - Error Based)"
+        techniques: ["TECH-ERROR_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-SQL-BACKEND"
+        probe_kind: "sql_error_probe"
+      - id_suffix: "time_based"
+        name: "Khai Thác SQL Injection (Dạng Trễ Thời Gian - Time Based Blind)"
+        order_by_name: "Khai Thác ORDER BY SQL Injection (Dạng Trễ Thời Gian - Time Based Blind)"
+        techniques: ["TECH-BLIND", "TECH-TIME_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-SQL-BACKEND"
+        probe_kind: "sql_time_delay_probe"
+      - id_suffix: "auth_bypass"
+        name: "Khai Thác SQL Injection Vượt Qua Xác Thực (Authentication Bypass)"
+        techniques: ["TECH-BOOLEAN_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-SQL-BACKEND"
+        probe_kind: "sql_auth_bypass_probe"
+        requires_component: "LOGIN_FORM"
+
+  XSS:
+    cwe_ids: ["CWE-79", "CWE-80"]
+    variants:
+      - id_suffix: "reflected"
+        name: "Tấn Công XSS Phản Xạ (Reflected Cross-Site Scripting)"
+        techniques: ["TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "xss_script_probe"
+
+  PATH_TRAVERSAL:
+    cwe_ids: ["CWE-22", "CWE-23", "CWE-35"]
+    variants:
+      - id_suffix: "file_retrieval"
+        name: "Đọc Tệp Tùy Ý Qua Lỗi Duyệt Thư Mục (Path Traversal)"
+        techniques: ["TECH-ERROR_BASED", "TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "path_traversal_probe"
+
+  COMMAND_INJECTION:
+    cwe_ids: ["CWE-78", "CWE-88", "CWE-77", "CWE-94"]
+    variants:
+      - id_suffix: "command_exec"
+        name: "Chèn Và Thực Thi Lệnh Hệ Điều Hành (OS Command Injection)"
+        techniques: ["TECH-BLIND", "TECH-TIME_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-COMMAND-EXECUTION-PRIVILEGE"
+        probe_kind: "os_command_probe"
+
+  CREDENTIALS:
+    cwe_ids: ["CWE-798", "CWE-259", "CWE-321", "CWE-1391"]
+    variants:
+      - id_suffix: "cred_spray"
+        name: "Xác Thực Bằng Thông Tin Đăng Nhập Mặc Định / Hardcoded Credentials"
+        techniques: ["TECH-BLIND", "TECH-ERROR_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+        probe_kind: "credential_spray_probe"
+
+  SSRF:
+    cwe_ids: ["CWE-918"]
+    variants:
+      - id_suffix: "oob_callback"
+        name: "Gượng Ép Yêu Cầu Phía Máy Chủ (SSRF Out-of-Band Callback)"
+        techniques: ["TECH-OUT_OF_BAND", "TECH-BLIND"]
+        channels: ["CHANNEL-DNS", "CHANNEL-HTTP"]
+        oracles: ["ORACLE-EXTERNAL-INTERACTION"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "ssrf_callback_probe"
+
+  XXE:
+    cwe_ids: ["CWE-611", "CWE-827"]
+    variants:
+      - id_suffix: "entity_resolution"
+        name: "Khai Thác Thực Thể Ngoài XML (XXE Entity Resolution)"
+        techniques: ["TECH-OUT_OF_BAND"]
+        channels: ["CHANNEL-DNS", "CHANNEL-HTTP"]
+        oracles: ["ORACLE-EXTERNAL-INTERACTION"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "xxe_entity_probe"
+
+  FILE_UPLOAD:
+    cwe_ids: ["CWE-434", "CWE-436", "CWE-1090", "CWE-356", "CWE-73"]
+    variants:
+      - id_suffix: "file_overwrite"
+        name: "Khai Thác Tải Lên / Ghi Đè Tệp Tin Tùy Ý (Arbitrary File Upload / Overwrite)"
+        techniques: ["TECH-ERROR_BASED", "TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "file_upload_probe"
+
+  ACCESS_CONTROL:
+    cwe_ids: ["CWE-639", "CWE-862", "CWE-863", "CWE-284", "CWE-285", "CWE-732"]
+    variants:
+      - id_suffix: "authz_bypass"
+        name: "Khai Thác Phân Quyền Sai / IDOR (Broken Access Control & IDOR)"
+        techniques: ["TECH-BLIND", "TECH-ERROR_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-AUTHENTICATED-SESSION"
+        probe_kind: "access_control_probe"
+
+  AUTHENTICATION_BYPASS:
+    cwe_ids: ["CWE-287", "CWE-306", "CWE-288", "CWE-289", "CWE-290", "CWE-307"]
+    variants:
+      - id_suffix: "auth_schema_bypass"
+        name: "Vượt Qua Xác Thực (Authentication Bypass / Missing Auth)"
+        techniques: ["TECH-BLIND", "TECH-ERROR_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-UNAUTHENTICATED-ACCESS"
+        probe_kind: "auth_bypass_probe"
+
+  CSRF:
+    cwe_ids: ["CWE-352"]
+    variants:
+      - id_suffix: "csrf_state_change"
+        name: "Giả Mạo Yêu Cầu Phía Máy Khách (Cross-Site Request Forgery - CSRF)"
+        techniques: ["TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+          - "CONSTRAINT-AUTHENTICATED-SESSION"
+        probe_kind: "csrf_probe"
+
+  SSTI:
+    cwe_ids: ["CWE-1336", "CWE-95"]
+    variants:
+      - id_suffix: "template_injection"
+        name: "Chèn Mã Khuôn Mẫu Phía Máy Chủ (Server-Side Template Injection - SSTI)"
+        techniques: ["TECH-ERROR_BASED", "TECH-TIME_BASED", "TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "ssti_probe"
+
+  DESERIALIZATION:
+    cwe_ids: ["CWE-502", "CWE-915"]
+    variants:
+      - id_suffix: "insecure_deserialization"
+        name: "Giải Tuần Tự Hóa Dữ Liệu Không An Toàn (Insecure Deserialization)"
+        techniques: ["TECH-OUT_OF_BAND", "TECH-ERROR_BASED", "TECH-TIME_BASED"]
+        channels: ["CHANNEL-HTTP", "CHANNEL-DNS"]
+        oracles: ["ORACLE-RESPONSE", "ORACLE-EXTERNAL-INTERACTION"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "deserialization_probe"
+
+  INFO_DISCLOSURE:
+    cwe_ids: ["CWE-200", "CWE-209", "CWE-548", "CWE-215"]
+    variants:
+      - id_suffix: "info_exposure"
+        name: "Lộ Dữ Liệu Nhạy Cảm / Thông Tin Hệ Thống (Information Disclosure)"
+        techniques: ["TECH-BLIND", "TECH-ERROR_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "info_exposure_probe"
+
+  CRYPTOGRAPHIC_FAILURES:
+    cwe_ids: ["CWE-327", "CWE-319", "CWE-311", "CWE-312", "CWE-330", "CWE-338"]
+    variants:
+      - id_suffix: "crypto_weakness"
+        name: "Lỗ Hổng Mật Mã Học / Truyền Bản Rõ (Cryptographic Failure)"
+        techniques: ["TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+        probe_kind: "crypto_probe"
+
+  CONTAINER_ESCAPE:
+    cwe_ids: ["CWE-403", "CWE-269", "CWE-250"]
+    variants:
+      - id_suffix: "container_breakout"
+        name: "Vượt Thoát Khỏi Container / Rò Rỉ File Descriptor (Container Breakout)"
+        techniques: ["TECH-BLIND", "TECH-ERROR_BASED"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-LOCAL-PROCESS-EXECUTION"
+          - "CONSTRAINT-CONTAINER-ENVIRONMENT"
+        probe_kind: "container_escape_probe"
+
+  MEMORY_CORRUPTION:
+    cwe_ids: ["CWE-787", "CWE-119", "CWE-120", "CWE-121", "CWE-122", "CWE-125", "CWE-416", "CWE-476", "CWE-190"]
+    variants:
+      - id_suffix: "memory_corruption"
+        name: "Tràn Bộ Đệm / Hỏng Bộ Nhớ (Memory Corruption & Buffer Overflow)"
+        techniques: ["TECH-ERROR_BASED", "TECH-BLIND", "TECH-FUZZING"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+        probe_kind: "memory_corruption_probe"
+
+  DOS_RESOURCE_EXHAUSTION:
+    cwe_ids: ["CWE-400", "CWE-407", "CWE-770", "CWE-730", "CWE-1245"]
+    variants:
+      - id_suffix: "resource_exhaustion"
+        name: "Kiểm Thử Cạn Kiệt Tài Nguyên & Độ Phức Tạp Thuật Toán (Resource Exhaustion / Algorithmic DoS)"
+        techniques: ["TECH-TIME_BASED", "TECH-FUZZING", "TECH-BLIND"]
+        channels: ["CHANNEL-HTTP"]
+        oracles: ["ORACLE-RESPONSE"]
+        constraints:
+          - "CONSTRAINT-REMOTE-NETWORK-REACHABLE"
+          - "CONSTRAINT-HTTP-SERVICE-REACHABLE"
+        probe_kind: "resource_exhaustion_probe"

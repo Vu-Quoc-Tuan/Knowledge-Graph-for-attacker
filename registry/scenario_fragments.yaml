@@ -1,0 +1,89 @@
+schema_version: 1
+fragments:
+  # Setup fragments
+  - fragment_id: "FRAG-SETUP-ANONYMOUS"
+    kind: "setup"
+    name: "Anonymous Target Access"
+    description: "Access target endpoint without authentication credentials."
+    requirements: ["target_url"]
+    action_template: "prepare_anonymous_session(target_url={target_url})"
+
+  - fragment_id: "FRAG-SETUP-AUTH-USER"
+    kind: "setup"
+    name: "Authenticated User Session"
+    description: "Authenticate with valid user credentials before testing."
+    requirements: ["target_url", "username", "password"]
+    action_template: "authenticate_user(target_url={target_url}, user={username}, password={password})"
+
+  # Input mutation fragments
+  - fragment_id: "FRAG-MUT-URL-QUERY-MARKER"
+    kind: "input_mutation"
+    name: "URL Query Controlled Marker Injection"
+    description: "Inject a controlled alphanumeric canary marker into a target URL query parameter."
+    requirements: ["parameter_name", "marker_value"]
+    action_template: "append_query_param(param={parameter_name}, value={marker_value})"
+
+  - fragment_id: "FRAG-MUT-PATH-TRAVERSAL"
+    kind: "input_mutation"
+    name: "Path Traversal Sequence Injection"
+    description: "Inject dot-dot-slash directory traversal sequences targeting sensitive file."
+    requirements: ["target_file", "depth"]
+    action_template: "build_traversal_path(file={target_file}, depth={depth})"
+
+  - fragment_id: "FRAG-MUT-JDBC-H2-EXEC"
+    kind: "input_mutation"
+    name: "H2 JDBC Connection String SQL Execution"
+    description: "Inject SQL command execution directive into H2 database connection string."
+    requirements: ["command"]
+    action_template: "build_h2_jdbc_string(command={command})"
+
+  - fragment_id: "FRAG-MUT-HEADER-SSRF"
+    kind: "input_mutation"
+    name: "Header SSRF Host Override"
+    description: "Inject internal loopback or listener URL into custom HTTP header."
+    requirements: ["header_name", "callback_url"]
+    action_template: "set_http_header(header={header_name}, value={callback_url})"
+
+  # Trigger fragments
+  - fragment_id: "FRAG-TRIG-UI-RENDER"
+    kind: "trigger"
+    name: "Client-side UI Render Trigger"
+    description: "Navigate browser or invoke client-side JavaScript to render the affected UI component."
+    requirements: ["component_selector"]
+    action_template: "render_ui_component(selector={component_selector})"
+
+  - fragment_id: "FRAG-TRIG-HTTP-GET"
+    kind: "trigger"
+    name: "HTTP GET Request Dispatch"
+    description: "Send crafted HTTP GET request to target endpoint."
+    requirements: ["endpoint_url"]
+    action_template: "http_get(url={endpoint_url})"
+
+  - fragment_id: "FRAG-TRIG-HTTP-POST-JSON"
+    kind: "trigger"
+    name: "HTTP POST JSON Dispatch"
+    description: "Send crafted HTTP POST request with JSON payload to target endpoint."
+    requirements: ["endpoint_url", "json_payload"]
+    action_template: "http_post_json(url={endpoint_url}, body={json_payload})"
+
+  # Oracle fragments
+  - fragment_id: "FRAG-ORACLE-DOM-MARKER"
+    kind: "oracle"
+    name: "Unencoded DOM Marker Observation"
+    description: "Inspect DOM tree to verify if the controlled canary marker was rendered without HTML escaping."
+    requirements: ["marker_value", "dom_sink_selector"]
+    action_template: "assert_dom_contains_unencoded(marker={marker_value}, selector={dom_sink_selector})"
+
+  - fragment_id: "FRAG-ORACLE-FILE-CONTENT"
+    kind: "oracle"
+    name: "Sensitive File Content Signature Observation"
+    description: "Inspect HTTP response body for standard file signatures such as root:x:0:0: or [extensions]."
+    requirements: ["expected_signature"]
+    action_template: "assert_response_contains(signature={expected_signature})"
+
+  - fragment_id: "FRAG-ORACLE-OOB-DNS"
+    kind: "oracle"
+    name: "Out-of-band DNS Callback Verification"
+    description: "Check callback interaction server for DNS lookup originating from target."
+    requirements: ["canary_subdomain"]
+    action_template: "assert_dns_callback_received(subdomain={canary_subdomain})"

@@ -1,0 +1,491 @@
+"""Canonical graph materialization for PATT reference payloads.
+
+This module deliberately materializes source-backed *references*, not
+executable test material.  Validation and target binding stay in the separate
+proposal/receipt workflow.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal
+
+from ckg.graph.models import GraphEdge, GraphNode
+from ckg.graph.ports import GraphRepository
+from ckg.ingestion.patt.payload_extractor import (
+    PayloadCandidate,
+    PayloadExtractionReport,
+    extract_payload_candidates,
+    extract_wordlist_candidates,
+)
+from ckg.ingestion.patt.payload_index import PATTIndex, payload_digest
+from ckg.ingestion.patt.slices import SLICES, VulnSlice
+
+
+PATTSourceKind = Literal["markdown", "wordlist"]
+
+
+def _stable_id(prefix: str, *parts: str) -> str:
+    material = chr(31).join(parts).encode("utf-8")
+    return f"{prefix}-{hashlib.sha256(material).hexdigest()[:24]}"
+
+
+@dataclass(frozen=True)
+class PATTSourceFile:
+    source_file: str
+    source_url: str
+    source_revision: str
+    content: str
+    kind: PATTSourceKind = "markdown"
+    technology: str | None = None
+
+
+@dataclass(frozen=True)
+class PATTStructuredImportReport:
+    slice_cwe_id: str
+    document_count: int
+    payload_count: int
+    family_count: int
+    technology_count: int
+    skipped_over_cap: int
+    unclassified_table_spans: int
+    headings_without_payloads: tuple[str, ...]
+    snapshot_digests: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PATTPlaneRestoreReport:
+    """Summary of graph semantics restored from the immutable payload index."""
+
+    cwe_count: int
+    payload_count: int
+    family_count: int
+    technology_count: int
+
+
+def slice_for_cwe(cwe_id: str) -> VulnSlice:
+    for slice_ in SLICES:
+        if slice_.weakness_id == cwe_id:
+            return slice_
+    raise ValueError(f"unknown PATT slice for {cwe_id}")
+
+
+def _family_by_key(slice_: VulnSlice) -> dict[str, object]:
+    result = {family.key: family for family in slice_.families}
+    if slice_.intruder_family is not None:
+        result[slice_.intruder_family.key] = slice_.intruder_family
+    return result
+
+
+def restore_patt_semantic_plane(
+    repository: GraphRepository,
+    *,
+    payload_index: PATTIndex,
+    cwe_ids: frozenset[str],
+) -> PATTPlaneRestoreReport:
+    """Rebuild compact family/technology nodes from cached PATT source rows.
+
+    Rebuilds that deliberately skip network refresh must not silently discard
+    the graph summary while leaving its richer SQLite source index intact.
+    Exact payloads stay in SQLite; this function restores only the canonical
+    family and technology plane from those indexed records.
+    """
+    target_ids = tuple(sorted(set(cwe_ids)))
+    available_cwes = {node.node_id for node in repository.nodes("CWE")}
+    missing_cwes = sorted(set(target_ids) - available_cwes)
+    if missing_cwes:
+        raise ValueError(
+            "PATT semantic restore requires existing focused CWE nodes: "
+            + ", ".join(missing_cwes)
+        )
+
+    family_nodes: dict[str, GraphNode] = {}
+    technology_nodes: dict[str, GraphNode] = {}
+    edges: dict[str, GraphEdge] = {}
+    populated_cwes: set[str] = set()
+    payload_count = 0
+
+    for summary in payload_index.family_inventory(cwe_ids=target_ids):
+        cwe_id = str(summary["cwe_id"])
+        family_key = str(summary["family_key"])
+        family_name = str(summary["family_name"])
+        family_payload_count = int(summary["payload_count"])
+        family_specs = _family_by_key(slice_for_cwe(cwe_id))
+        family_spec = family_specs.get(family_key)
+        if family_spec is None:
+            raise ValueError(
+                f"PATT index contains an unknown family for {cwe_id}: {family_key}"
+            )
+        if family_name != family_spec.name:
+            raise ValueError(
+                f"PATT family name mismatch for {cwe_id}/{family_key}: "
+                f"index={family_name!r}, catalog={family_spec.name!r}"
+            )
+
+        source_revisions = list(summary["source_revisions"])
+        source_digests = list(summary["source_snapshot_digests"])
+        family_technologies: dict[str, str] = {}
+        for raw_name in summary["technologies"]:
+            name = str(raw_name).strip()
+            if name:
+                key = name.casefold()
+                family_technologies[key] = min(family_technologies.get(key, name), name)
+        if not source_revisions or not source_digests or any(
+            not str(digest).startswith("sha256:") for digest in source_digests
+        ):
+            raise ValueError(
+                f"PATT family has incomplete source provenance: {cwe_id}/{family_key}"
+            )
+
+        family_id = _stable_id("PATT-PAYLOAD-FAMILY", cwe_id, family_key)
+        family_node = GraphNode(
+            label="PayloadFamily",
+            node_id=family_id,
+            props={
+                "family_key": family_key,
+                "name": family_spec.name,
+                "detection_signal": family_spec.detection_signal,
+                "slice_cwe_id": cwe_id,
+                "origin": "patt",
+                "curation_status": "upstream_curated",
+                "payload_count": family_payload_count,
+                "technologies": sorted(family_technologies.values(), key=str.casefold),
+                "source_revisions": source_revisions,
+                "source_snapshot_digests": source_digests,
+            },
+        )
+        previous_family = family_nodes.get(family_id)
+        if previous_family is not None and previous_family != family_node:
+            raise ValueError(f"conflicting cached PATT family identity: {family_id}")
+        family_nodes[family_id] = family_node
+        family_edge = GraphEdge(
+            edge_id=_stable_id("EDGE-HAS-PAYLOAD-FAMILY", cwe_id, family_id),
+            edge_type="HAS_PAYLOAD_FAMILY",
+            subject_id=cwe_id,
+            object_id=family_id,
+            props={"source": "patt"},
+        )
+        edges[family_edge.edge_id] = family_edge
+        populated_cwes.add(cwe_id)
+        payload_count += family_payload_count
+
+        for name in family_technologies.values():
+            technology_id = _stable_id("PATT-TECHNOLOGY", name.casefold())
+            technology_node = GraphNode(
+                label="Technology",
+                node_id=technology_id,
+                props={"name": name, "origin": "patt"},
+            )
+            previous_technology = technology_nodes.get(technology_id)
+            if previous_technology is not None and previous_technology.props["name"] != name:
+                # The source index can differ only by casing across slices;
+                # choose a deterministic spelling for one canonical node.
+                name = min(str(previous_technology.props["name"]), name)
+                technology_node = GraphNode(
+                    label="Technology",
+                    node_id=technology_id,
+                    props={"name": name, "origin": "patt"},
+                )
+            technology_nodes[technology_id] = technology_node
+            technology_edge = GraphEdge(
+                edge_id=_stable_id("EDGE-FAMILY-APPLIES-TO", family_id, technology_id),
+                edge_type="APPLIES_TO",
+                subject_id=family_id,
+                object_id=technology_id,
+            )
+            edges[technology_edge.edge_id] = technology_edge
+
+    missing_index_cwes = sorted(set(target_ids) - populated_cwes)
+    if missing_index_cwes:
+        raise ValueError(
+            "PATT payload index has no source-backed family records for: "
+            + ", ".join(missing_index_cwes)
+        )
+
+    repository.atomic_write(
+        nodes=sorted((*family_nodes.values(), *technology_nodes.values()), key=lambda item: item.node_id),
+        edges=sorted(edges.values(), key=lambda item: item.edge_id),
+    )
+    return PATTPlaneRestoreReport(
+        cwe_count=len(populated_cwes),
+        payload_count=payload_count,
+        family_count=len(family_nodes),
+        technology_count=len(technology_nodes),
+    )
+
+
+def _extract(
+    source: PATTSourceFile,
+    *,
+    slice_: VulnSlice,
+    max_payloads_per_family: int,
+) -> PayloadExtractionReport:
+    if source.kind == "markdown":
+        return extract_payload_candidates(
+            slice_,
+            source_file=source.source_file,
+            source_url=source.source_url,
+            markdown=source.content,
+            technology=source.technology,
+            max_payloads_per_family=max_payloads_per_family,
+        )
+    if source.kind == "wordlist":
+        if slice_.intruder_family is None:
+            raise ValueError(f"PATT slice {slice_.weakness_id} has no Intruder family")
+        return extract_wordlist_candidates(
+            slice_,
+            source_file=source.source_file,
+            source_url=source.source_url,
+            wordlist=source.content,
+            technology=source.technology,
+            max_payloads_per_family=max_payloads_per_family,
+        )
+    raise ValueError(f"unsupported PATT source kind: {source.kind!r}")
+
+
+def import_patt_payload_sources(
+    repository: GraphRepository,
+    *,
+    slice_cwe_id: str,
+    sources: tuple[PATTSourceFile, ...],
+    snapshot_digests: tuple[str, ...],
+    retrieved_at: datetime,
+    max_payloads_per_family: int = 400,
+    payload_index: PATTIndex | None = None,
+) -> PATTStructuredImportReport:
+    """Materialize compact graph context and index exact payload references.
+
+    The graph intentionally contains no one-node-per-payload or
+    one-node-per-section expansion.  Those records remain queryable through
+    ``payload_index`` with their immutable snapshot locator.
+    """
+    if len(sources) != len(snapshot_digests):
+        raise ValueError("each PATT source requires exactly one snapshot digest")
+    if max_payloads_per_family < 0:
+        raise ValueError("max_payloads_per_family must be non-negative")
+    if slice_cwe_id not in {node.node_id for node in repository.nodes("CWE")}:
+        raise ValueError(f"CWE must exist before PATT payload import: {slice_cwe_id}")
+    slice_ = slice_for_cwe(slice_cwe_id)
+    families = _family_by_key(slice_)
+
+    nodes: list[GraphNode] = []
+    edges: list[GraphEdge] = []
+    family_ids: dict[str, str] = {}
+    family_technology_names: dict[str, set[str]] = {}
+    technology_ids: dict[str, str] = {}
+    seen_evidence: set[str] = set()
+    seen_documents: set[str] = set()
+    node_ids: set[str] = set()
+    edge_ids: set[str] = set()
+    seen_payload_ids: set[str] = set()
+    payload_records: list[dict[str, object]] = []
+    payload_count = 0
+    skipped_over_cap = 0
+    unclassified_table_spans = 0
+    headings_without_payloads: list[str] = []
+
+    for source, digest in zip(sources, snapshot_digests, strict=True):
+        document_id = _stable_id(
+            "PATT-DOCUMENT", slice_cwe_id, source.source_file,
+            source.source_url, source.source_revision, source.kind, digest,
+        )
+        evidence_id = _stable_id("EVID-PATT-PAYLOAD", document_id, digest)
+        if document_id not in seen_documents:
+            document = GraphNode(
+                label="PATTDocument", node_id=document_id,
+                props={
+                    "document_id": document_id,
+                    "slice_cwe_id": slice_cwe_id,
+                    "source_file": source.source_file,
+                    "source_url": source.source_url,
+                    "source_revision": source.source_revision,
+                    "source_kind": source.kind,
+                    "source_snapshot_digest": digest,
+                    "retrieved_at": retrieved_at.isoformat(),
+                },
+            )
+            nodes.append(document)
+            node_ids.add(document_id)
+            seen_documents.add(document_id)
+        if evidence_id not in seen_evidence:
+            evidence = GraphNode(
+                label="Evidence", node_id=evidence_id,
+                props={
+                    "evidence_id": evidence_id,
+                    "kind": f"patt_{source.kind}",
+                    "content_digest": digest,
+                    "retrieved_at": retrieved_at.isoformat(),
+                    "source_url": source.source_url,
+                    "storage_uri": None,
+                    "source_revision": source.source_revision,
+                },
+            )
+            nodes.append(evidence)
+            node_ids.add(evidence_id)
+            seen_evidence.add(evidence_id)
+        document_edge = GraphEdge(
+            edge_id=_stable_id("EDGE-PATT-DOCUMENT-SUPPORTED-BY", document_id, evidence_id),
+            edge_type="SUPPORTED_BY",
+            subject_id=document_id,
+            object_id=evidence_id,
+            props={"source_snapshot_digest": digest},
+        )
+        if document_edge.edge_id not in edge_ids:
+            edges.append(document_edge)
+            edge_ids.add(document_edge.edge_id)
+
+        report = _extract(
+            source, slice_=slice_, max_payloads_per_family=max_payloads_per_family
+        )
+        skipped_over_cap += report.skipped_over_cap
+        unclassified_table_spans += report.unclassified_table_spans
+        for heading in report.headings_without_payloads:
+            qualified = f"{source.source_file}:{heading}"
+            if qualified not in headings_without_payloads:
+                headings_without_payloads.append(qualified)
+
+        for candidate in report.candidates:
+            family = families[candidate.family_key]
+            family_id = family_ids.setdefault(
+                candidate.family_key,
+                _stable_id("PATT-PAYLOAD-FAMILY", slice_cwe_id, candidate.family_key),
+            )
+            family_technology_names.setdefault(family_id, set())
+            if candidate.technology and candidate.technology.strip():
+                family_technology_names[family_id].add(candidate.technology.strip())
+            if family_id not in node_ids:
+                nodes.append(GraphNode(
+                    label="PayloadFamily", node_id=family_id,
+                    props={
+                        "family_key": candidate.family_key,
+                        "name": family.name,
+                        "detection_signal": family.detection_signal,
+                        "slice_cwe_id": slice_cwe_id,
+                        "origin": "patt",
+                        "curation_status": "upstream_curated",
+                        "technologies": [],
+                    },
+                ))
+                node_ids.add(family_id)
+                family_edge = GraphEdge(
+                    edge_id=_stable_id("EDGE-HAS-PAYLOAD-FAMILY", slice_cwe_id, family_id),
+                    edge_type="HAS_PAYLOAD_FAMILY",
+                    subject_id=slice_cwe_id,
+                    object_id=family_id,
+                    props={"source": "patt"},
+                )
+                if family_edge.edge_id not in edge_ids:
+                    edges.append(family_edge)
+                    edge_ids.add(family_edge.edge_id)
+
+            payload_id = _stable_id(
+                "PATT-PAYLOAD", family_id, candidate.value,
+                candidate.technology or "", digest, candidate.locator,
+            )
+            if payload_id in seen_payload_ids:
+                continue
+            seen_payload_ids.add(payload_id)
+            payload_records.append({
+                "payload_id": payload_id,
+                "cwe_id": slice_cwe_id,
+                "value": candidate.value,
+                "payload_digest": payload_digest(candidate.value),
+                "family_key": candidate.family_key,
+                "family_name": candidate.family_name,
+                "technology": candidate.technology,
+                "source_file": source.source_file,
+                "source_url": source.source_url,
+                "source_revision": source.source_revision,
+                "source_kind": source.kind,
+                "source_snapshot_digest": digest,
+                "section_heading": candidate.section_heading,
+                "locator": candidate.locator,
+                "extraction": candidate.extraction,
+                "origin": "patt",
+                "curation_status": "upstream_curated",
+                "validation_status": "untested",
+            })
+            source_family_edge = GraphEdge(
+                edge_id=_stable_id("EDGE-PATT-FAMILY-SOURCED-FROM", family_id, document_id),
+                edge_type="SOURCED_FROM",
+                subject_id=family_id,
+                object_id=document_id,
+                props={"source_snapshot_digest": digest},
+            )
+            if source_family_edge.edge_id not in edge_ids:
+                edges.append(source_family_edge)
+                edge_ids.add(source_family_edge.edge_id)
+            if candidate.technology:
+                technology_id = technology_ids.setdefault(
+                    candidate.technology,
+                    _stable_id("PATT-TECHNOLOGY", candidate.technology.casefold()),
+                )
+                if technology_id not in node_ids:
+                    nodes.append(GraphNode(
+                        label="Technology", node_id=technology_id,
+                        props={"name": candidate.technology, "origin": "patt"},
+                    ))
+                    node_ids.add(technology_id)
+                family_technology_edge = GraphEdge(
+                    edge_id=_stable_id("EDGE-FAMILY-APPLIES-TO", family_id, technology_id),
+                    edge_type="APPLIES_TO", subject_id=family_id, object_id=technology_id,
+                )
+                if family_technology_edge.edge_id not in edge_ids:
+                    edges.append(family_technology_edge)
+                    edge_ids.add(family_technology_edge.edge_id)
+            payload_count += 1
+
+    existing_families = {
+        node.node_id: node
+        for node in repository.nodes_by_ids(frozenset(family_ids.values()))
+        if node.label == "PayloadFamily"
+    }
+    nodes = [
+        node.model_copy(update={
+            "props": {
+                **node.props,
+                "technologies": sorted(
+                    {
+                        *family_technology_names.get(node.node_id, set()),
+                        *(
+                            name
+                            for name in existing_families.get(node.node_id, node).props.get("technologies", [])
+                            if isinstance(name, str) and name.strip()
+                        ),
+                    },
+                    key=str.casefold,
+                ),
+            },
+        })
+        if node.label == "PayloadFamily"
+        else node
+        for node in nodes
+    ]
+
+    if payload_index is not None:
+        payload_index.put_many(payload_records)
+    repository.atomic_write(nodes=nodes, edges=edges)
+    return PATTStructuredImportReport(
+        slice_cwe_id=slice_cwe_id,
+        document_count=len(seen_documents),
+        payload_count=payload_count,
+        family_count=len(family_ids),
+        technology_count=len(technology_ids),
+        skipped_over_cap=skipped_over_cap,
+        unclassified_table_spans=unclassified_table_spans,
+        headings_without_payloads=tuple(headings_without_payloads),
+        snapshot_digests=tuple(snapshot_digests),
+    )
+
+
+__all__ = [
+    "PATTSourceFile",
+    "PATTPlaneRestoreReport",
+    "PATTSourceKind",
+    "PATTStructuredImportReport",
+    "import_patt_payload_sources",
+    "restore_patt_semantic_plane",
+    "slice_for_cwe",
+]

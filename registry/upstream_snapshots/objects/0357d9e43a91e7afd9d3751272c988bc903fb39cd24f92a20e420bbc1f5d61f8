@@ -1,0 +1,3 @@
+# Testing for Server-Side Template Injection (SSTI)
+
+Verify whether template engine expressions can be evaluated dynamically on the server leading to arbitrary code execution.

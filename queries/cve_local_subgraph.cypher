@@ -1,0 +1,19 @@
+// Bounded v2 traversal. Callers bind $root_id, $max_depth, $max_nodes.
+MATCH (root:GraphEntity {nodeId: $root_id})
+CALL {
+  WITH root
+  MATCH path=(root)-[rels:CKG_REL*1..$max_depth]-(node:GraphEntity)
+  WHERE ALL(rel IN rels WHERE rel.kind IN [
+    'HAS_WEAKNESS_ASSERTION','HAS_TECHNIQUE_ASSERTION','HAS_CONTEXT_ASSERTION',
+    'MAPS_TO','SUPPORTED_BY','DESCRIBES','USES_TECHNIQUE','USES_CHANNEL',
+    'USES_ORACLE','APPLIES_TO','TARGETS_WEAKNESS','RELATED_WEAKNESS',
+    'CHILD_OF','PARENT_OF','CAN_PRECEDE','CAN_FOLLOW','REQUIRES','REQUIRED_BY',
+    'PEER_OF','CAN_ALSO_BE','SIMILAR_TO','SHARES_PATTERN','HAS_OCCURRENCE',
+    'ENABLES','PRECEDES','REQUIRED_TOGETHER','HAS_CONSTRAINT','REQUIRES_CONSTRAINT',
+    'BLOCKED_BY','DERIVED_FROM'
+  ])
+  RETURN DISTINCT node
+  ORDER BY node.nodeId
+  LIMIT $max_nodes
+}
+RETURN root, collect(node) AS nodes

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CKG VulnGraph Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="/ui/v2/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/ui/v2/styles.css?v=3">
+  </head>
+  <body>
+    <!-- Top Navbar -->
+    <header class="navbar">
+      <div class="nav-container">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+          </div>
+          <span class="brand-text"><strong>CKG</strong> VulnGraph <span class="brand-sub">· Evidence before execution.</span></span>
+          <span class="nav-badge">v2.0</span>
+        </div>
+
+        <div class="nav-actions">
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span id="backend-status">Backend: checking…</span>
+          </div>
+          <button id="btn-open-ingest" class="btn-primary" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Nạp Lỗ Hổng</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-container">
+      <!-- Search & Quick Selection Hero -->
+      <section class="search-section">
+        <form id="case-form" class="search-form" autocomplete="off">
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input id="cve-id" name="cve-id" value="" pattern="(?:CVE-\d{4}-\d+|GHSA-[A-Za-z0-9\-]+)" placeholder="Nhập mã CVE hoặc GHSA..." required autocomplete="off">
+            <button type="submit" class="btn-search">Khám Phá</button>
+          </div>
+        </form>
+
+        <form id="technology-form" class="technology-search" autocomplete="off">
+          <div class="technology-search-title">Công nghệ → CVE gần đây</div>
+          <div class="technology-search-fields">
+            <input id="technology-name" type="text" placeholder="Ví dụ: Grafana, OpenSSL, React" aria-label="Tên công nghệ">
+            <input id="technology-from-year" type="number" min="1999" max="2100" placeholder="Từ năm" aria-label="Năm bắt đầu">
+            <input id="technology-to-year" type="number" min="1999" max="2100" placeholder="Đến năm" aria-label="Năm kết thúc">
+            <label class="technology-refresh"><input id="technology-refresh" type="checkbox"> Nạp mới từ NVD</label>
+            <button type="submit" class="btn-search">Tra CVE</button>
+          </div>
+          <div class="technology-search-help">Mặc định: 5 năm gần nhất. Kết quả được lọc từ các Product/Package có bằng chứng trong graph v2.</div>
+        </form>
+        <div id="technology-results" class="technology-results" aria-live="polite"></div>
+
+        <div class="quick-chips">
+          <span class="chips-label">Mẫu nhanh:</span>
+          <button type="button" class="chip-item" data-cve="CVE-2024-44541">CVE-2024-44541 (XSS)</button>
+          <button type="button" class="chip-item" data-cve="CVE-2021-43798">CVE-2021-43798 (Grafana)</button>
+          <button type="button" class="chip-item" data-cve="CVE-2023-38646">CVE-2023-38646 (Metabase)</button>
+          <button type="button" class="chip-item" data-cve="CVE-2023-28850">CVE-2023-28850 (Nextcloud SSRF)</button>
+        </div>
+      </section>
+
+      <!-- Status Notification -->
+      <div id="notice" class="notice" role="status" aria-live="polite">Sẵn sàng tra cứu dữ liệu đồ thị.</div>
+
+      <!-- Section 01: Ledger / Dossier -->
+      <section class="card-panel" aria-labelledby="ledger-title">
+        <div class="panel-header">
+          <div class="header-title">
+            <span class="badge badge-amber">01</span>
+            <h2 id="ledger-title">Hồ Sơ Điểm Yếu</h2>
+          </div>
+        </div>
+        <div id="case-summary" class="case-summary empty">Chưa chọn lỗ hổng nào. Hãy nhập mã CVE hoặc chọn mẫu nhanh bên trên.</div>
+        <ol id="assertions" class="assertions-grid" aria-label="Weakness assertions"></ol>
+      </section>
+
+      <!-- Section 02: Interactive Subgraph Canvas -->
+      <section class="card-panel" aria-labelledby="graph-title">
+        <div class="panel-header">
+          <div class="header-title">
+            <span class="badge badge-cyan">02</span>
+            <h2 id="graph-title">Đồ Thị Con Cục Bộ (Subgraph)</h2>
+          </div>
+          <div class="graph-controls">
+            <span id="graph-stats" class="stats-pill">0 Nodes · 0 Edges</span>
+            <div class="btn-icon-group">
+              <button id="btn-zoom-in" class="btn-icon" type="button" title="Phóng to">➕</button>
+              <button id="btn-zoom-out" class="btn-icon" type="button" title="Thu nhỏ">➖</button>
+              <button id="btn-reset-graph" class="btn-icon" type="button" title="Căn giữa">↺</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="graph-wrapper">
+          <div class="canvas-box">
+            <canvas id="subgraph-canvas"></canvas>
+          </div>
+
+          <div class="graph-legend">
+            <span class="legend-tag"><span class="dot dot-cve"></span> CVE/GHSA</span>
+            <span class="legend-tag"><span class="dot dot-cwe"></span> CWE</span>
+            <span class="legend-tag"><span class="dot dot-tech"></span> Technique</span>
+            <span class="legend-tag"><span class="dot dot-assert"></span> Assertion</span>
+            <span class="legend-tag"><span class="dot dot-ctx"></span> Context</span>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section 03 & 04: Side-by-side -->
+      <div class="grid-two-col">
+        <!-- Section 03: Constraints -->
+        <section class="card-panel" aria-labelledby="constraint-title">
+          <div class="panel-header">
+            <div class="header-title">
+              <span class="badge badge-purple">03</span>
+              <h2 id="constraint-title">Ràng Buộc Điều Kiện</h2>
+            </div>
+          </div>
+          <div id="constraints" class="constraint-box">Không có ràng buộc.</div>
+        </section>
+
+        <!-- Section 04: Historical Neighbors -->
+        <section class="card-panel" aria-labelledby="history-title">
+          <div class="panel-header">
+            <div class="header-title">
+              <span class="badge badge-blue">04</span>
+              <h2 id="history-title">Lỗ Hổng Tương Đồng</h2>
+            </div>
+          </div>
+          <ol id="neighbors" class="neighbor-cards"></ol>
+        </section>
+      </div>
+
+      <!-- Section 05: Scenarios -->
+      <section class="card-panel" aria-labelledby="scenario-title">
+        <div class="panel-header">
+          <div class="header-title">
+            <span class="badge badge-emerald">05</span>
+            <h2 id="scenario-title">Kịch Bản Kiểm Tra Ngữ Nghĩa</h2>
+          </div>
+        </div>
+        <div id="scenarios" class="scenario-grid"></div>
+      </section>
+
+      <!-- Section 06: Curated PATT Reference Payloads -->
+      <section class="card-panel" aria-labelledby="payload-reference-title">
+        <div class="panel-header">
+          <div class="header-title">
+            <span class="badge badge-blue">06</span>
+            <h2 id="payload-reference-title">Tham Khảo Payload Đã Curate</h2>
+          </div>
+          <span class="reference-only-label">Reference only · chưa kiểm chứng trên mục tiêu</span>
+        </div>
+        <p class="payload-reference-notice">Các chuỗi dưới đây được trích nguyên trạng từ PayloadsAllTheThings kèm nguồn và snapshot. Chúng không phải lệnh tự động chạy, không chứng minh lỗ hổng tồn tại, và không thay thế quy trình xác thực có ủy quyền.</p>
+        <div id="patt-payloads" class="payload-reference-grid" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <!-- Ingest Modal -->
+    <div id="ingest-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-box">
+        <div class="modal-top">
+          <h2 id="modal-title">Nạp Lỗ Hổng Vào Đồ Thị</h2>
+          <button id="btn-close-modal" class="btn-close" type="button" aria-label="Đóng">&times;</button>
+        </div>
+
+        <div class="tabs-nav">
+          <button id="tab-btn-online" class="tab-item active" type="button">🌐 Tự Động (MITRE / NVD)</button>
+          <button id="tab-btn-manual" class="tab-item" type="button">✍️ Tự Nhập / JSON</button>
+        </div>
+
+        <!-- Panel 1: Online Fetch -->
+        <div id="tab-online" class="tab-content active">
+          <form id="form-ingest-online">
+            <div class="field-group">
+              <label for="online-cve-id">Mã CVE</label>
+              <input id="online-cve-id" type="text" placeholder="VD: CVE-2024-21626" required>
+            </div>
+            <div class="field-group">
+              <label for="online-source">Nguồn API</label>
+              <select id="online-source">
+                <option value="cve_services" selected>MITRE CVE Services (cveawg.mitre.org)</option>
+                <option value="nvd">NIST NVD API 2.0</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button class="btn-ghost" type="button" id="btn-cancel-online">Hủy</button>
+              <button class="btn-primary" type="submit" id="btn-submit-online">📥 Tải & Nạp Vào Đồ Thị</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Panel 2: Manual / Custom JSON -->
+        <div id="tab-manual" class="tab-content">
+          <div class="mode-toggles">
+            <label class="toggle-pill">
+              <input type="radio" name="manual-mode" value="form" checked> Form Nhập
+            </label>
+            <label class="toggle-pill">
+              <input type="radio" name="manual-mode" value="json"> Dán JSON
+            </label>
+          </div>
+
+          <form id="form-ingest-manual">
+            <div id="manual-form-inputs">
+              <div class="field-group">
+                <label for="manual-cve-id">Mã Lỗ Hổng</label>
+                <input id="manual-cve-id" type="text" placeholder="VD: CVE-2026-99999" required>
+              </div>
+              <div class="field-group">
+                <label for="manual-title">Tiêu Đề</label>
+                <input id="manual-title" type="text" placeholder="VD: SQL Injection in User Login" required>
+              </div>
+              <div class="field-group">
+                <label for="manual-desc">Mô Tả Lỗ Hổng</label>
+                <textarea id="manual-desc" rows="3" placeholder="Mô tả kỹ thuật chi tiết..." required></textarea>
+              </div>
+              <div class="field-group">
+                <label for="manual-cwe">Mã Điểm Yếu CWE (Liên kết đồ thị)</label>
+                <input id="manual-cwe" type="text" placeholder="VD: CWE-89, CWE-79...">
+                <div class="quick-cwe-pills" style="margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                  <button type="button" class="cwe-pill-btn" data-cwe="CWE-89">CWE-89 (SQLi)</button>
+                  <button type="button" class="cwe-pill-btn" data-cwe="CWE-79">CWE-79 (XSS)</button>
+                  <button type="button" class="cwe-pill-btn" data-cwe="CWE-22">CWE-22 (Traversal)</button>
+                  <button type="button" class="cwe-pill-btn" data-cwe="CWE-78">CWE-78 (Cmd Inj)</button>
+                  <button type="button" class="cwe-pill-btn" data-cwe="CWE-94">CWE-94 (RCE)</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="manual-json-inputs" style="display: none;">
+              <div class="field-group">
+                <label for="manual-json-text">Chuỗi JSON</label>
+                <textarea id="manual-json-text" rows="7" placeholder='{ "cveId": "CVE-2026-99999", "title": "SQLi in Login", "description": "Unsanitized query in app", "cweId": "CWE-89" }'></textarea>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn-ghost" type="button" id="btn-cancel-manual">Hủy</button>
+              <button class="btn-primary" type="submit" id="btn-submit-manual">⚡ Nạp Vào Đồ Thị</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="modal-status" class="modal-status"></div>
+      </div>
+    </div>
+
+    <script src="/ui/v2/app.js?v=3" defer></script>
+  </body>
+</html>

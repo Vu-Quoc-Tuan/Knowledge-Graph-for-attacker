@@ -1,0 +1,30 @@
+schema_version: 1
+catalogs:
+  cwe:
+    release: "4.20"
+    catalog_url: https://cwe.mitre.org/data/xml/cwec_v4.20.xml.zip
+    catalog_zip_digest: sha256:3976f599e5e5200219a3108bb896d06e2a88fbb293369e1883cb423a5e9d7d50
+    catalog_xml_digest: sha256:1f5a78bd62e00f86436b4fe32d5034a57e8f0da88e4063b2072b664ae510912e
+    schema_url: https://cwe.mitre.org/data/xsd/cwe_schema_v7.3.xsd
+    schema_version: "7.3"
+    schema_digest: sha256:690dedeed4e12eb8ba7244bbab90176afac549cfd6403de37000de7481e45f98
+    replay_recorded_at: "2026-09-14T00:00:00Z"
+    expected_counts:
+      weaknesses: 969
+      relations: 1602
+      groups: 481
+      source_memberships: 5024
+      imported_memberships: 4603
+      unresolved_memberships: 421
+  capec:
+    release: "3.9"
+    catalog_url: https://capec.mitre.org/data/xml/capec_latest.xml
+    catalog_digest: sha256:70279a2dff0cb0ad79e546adb07828335a704ad5210e047e09e986172fc9e34d
+    schema_url: https://capec.mitre.org/data/xsd/ap_schema_latest.xsd
+    schema_digest: sha256:7b6a8e95c966a51eb6844af5025614844534512daaff761ea46f585d3e6a80a0
+    replay_recorded_at: "2026-09-14T00:00:00Z"
+    expected_counts:
+      patterns: 615
+      related_weaknesses: 1214
+      steps: 815
+      prerequisites: 747

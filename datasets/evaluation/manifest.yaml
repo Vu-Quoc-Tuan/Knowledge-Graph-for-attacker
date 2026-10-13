@@ -1,0 +1,74 @@
+schema_version: 2
+experiment_id: historical-cve-weakness-v1
+policy: temporal
+cutoff: "2026-09-15T23:59:59Z"
+cutoffs:
+  - "2024-01-01T00:00:00Z"
+  - "2025-01-01T00:00:00Z"
+  - "2026-01-01T00:00:00Z"
+  - "2026-09-15T23:59:59Z"
+source_versions:
+  cwe: "4.20"
+  capec: "3.9"
+  wstg: "excluded_from_cve_replay"
+  patt: "excluded_from_cve_replay"
+source_snapshots:
+  cwe:
+    release: "4.20"
+    snapshot_digest: "sha256:1f5a78bd62e00f86436b4fe32d5034a57e8f0da88e4063b2072b664ae510912e"
+  capec:
+    release: "3.9"
+    snapshot_digest: "sha256:70279a2dff0cb0ad79e546adb07828335a704ad5210e047e09e986172fc0f39e34d"
+  wstg:
+    status: excluded_from_cve_replay
+    reason: "scenario-plane source is not used by the CVE-to-CWE historical task"
+  patt:
+    status: excluded_from_cve_replay
+    reason: "scenario-plane source is not used by the CVE-to-CWE historical task"
+cve_snapshot:
+  root: "registry/upstream_snapshots"
+  parser_version: "ckg-cve-parser-v1"
+  object_count: 25
+  inventory_digest: "sha256:7b30400290817a904368394699fe4abc3b7c19c9317e71b9ce9d10b0d488df61"
+  object_digests:
+    - "sha256:003ae009c09304416cfece22508b394393aa4becfc8d69da566742eced100249"
+    - "sha256:0842ce0e797598452d440c65ea1528bfebbef4c89dcaef90f36fc0f39e75fdc9"
+    - "sha256:10cbbbbf7a3d74ae0aa5101c50e5b37d1969f08741b1dba3bd322b86e05500d7"
+    - "sha256:1c7b3ccf3c6d6ee35c5f043a987460c59382e7e726f73e76bf16ab938bc4b1a1"
+    - "sha256:2a44501b3aa0b5d74f32eb04bf9889b975aff16c50e501fa9aab8380f612a10a"
+    - "sha256:3be83288e67ded18324925fe074f543ac94564ec7f87ac9a529d27064164f20e"
+    - "sha256:3c0659c4481bee9e5d69c67bb2c870b8a98fe045615b72be655b94bcbc6f5821"
+    - "sha256:44224d6c19fbdcbb4998103318058b3db79b84684490a90d1047e3a14e9fa7e7"
+    - "sha256:4442e808016356ff5a233dee63bdc8dea601918932bb468b2605e38cc9fa78ba"
+    - "sha256:4c7860d78a1422df5332771459f00135b6d175783b93967956284972c0721c21"
+    - "sha256:51047141aed70efadeeeab6f630977ed4b7df453ea18ad86c4802a7e9201df72"
+    - "sha256:599acb0f19950df73027087de48a6d90407219859d7be784745baa21aa4420ac"
+    - "sha256:6044898ce17160b1f819a84e376f403ceac8c8c7c4bf6a548657fa176333e3d6"
+    - "sha256:7f16f93c488f8f1e89752625e46863babe6ba5f184f12445b2145051b064f822"
+    - "sha256:834854e4ab38df923d713e6e60306e7210e2bb6e61cf10059b644f98b07fceb0"
+    - "sha256:853b11395dcd76c3e63734ae35bdae5cf191dddf92a6751419dfb9ae98c56c6b"
+    - "sha256:917e62af931b40f600cd8c0a40b7e6e95622c41257a8baf803cc0d9bc441cb44"
+    - "sha256:96cb25b76f901a2f7de176700054fa8ef94bf851d3a56efa71a528560e5f4f82"
+    - "sha256:9fb87baa23242a9504f040e6a4a30d1345b5d69293887e35c65b3a148c99b44f"
+    - "sha256:af7b893f2dcbec63386e37958bd925722c72500619bbffbc6a254560b00947f3"
+    - "sha256:b1f0ba3d6dd24c9bccbb4ef256b0283dc5a45579af716c1705186612c5626167"
+    - "sha256:b4fbc3a4d068497a9e70129d208fe68c55357634829af862026090a4b9f97451"
+    - "sha256:bc4df8fe555e9bbc5141c7c8f8cbf2594a33dbe59657ce8756d5f5748a5eb945"
+    - "sha256:c328ee3ed29e2570f319648f86534c1b0b93fd8e9c5ff333c36489f3211d181d"
+    - "sha256:c88547846dcf371ac78237fb36cdc8b46b30464af553c49d2d7e60dba2d17583"
+random_seed: 20260914
+embedding_version: "lexical-hash-v1"
+scoring_config_version: "historical-baselines-v1"
+model_version: "deterministic-replay-v1"
+prompt_version: "not_applicable"
+annotation_policy: "datasets/evaluation/annotation_policy.md"
+result_schema_version: 1
+baselines:
+  - "keyword-v1"
+  - "bm25-v1"
+  - "lexical-hash-v1"
+  - "graph-only-v1"
+  - "graph-evidence-v1"
+  - "graph-temporal-v1"
+  - "graph-provenance-v1"
+  - "graph-full-v1"

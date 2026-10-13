@@ -1,0 +1,46 @@
+schema_version: 1
+policies:
+  cwe:
+    source_kind: mitre_xml
+    canonical: true
+    release: "4.20"
+    schema_version: "7.3"
+    url_template: "https://cwe.mitre.org/data/xml/cwec_v{release}.xml.zip"
+    requires_snapshot: true
+  capec:
+    source_kind: mitre_xml
+    canonical: true
+    release: "3.9"
+    url: "https://capec.mitre.org/data/xml/capec_latest.xml"
+    requires_snapshot: true
+  wstg:
+    source_kind: markdown
+    canonical: false
+    plane: test_knowledge
+    pinned_release: "v4.2"
+    url_template: "https://raw.githubusercontent.com/OWASP/wstg/{release}/document"
+    requires_snapshot: true
+  patt:
+    source_kind: markdown
+    canonical: false
+    plane: test_knowledge
+    pinned_commit: "master"
+    url_template: "https://raw.githubusercontent.com/swisskyrepo/PayloadsAllTheThings/{commit}"
+    requires_snapshot: true
+  cve_services:
+    source_kind: json5
+    canonical: false
+    plane: vulnerability_evidence
+    url_template: "https://cveawg.mitre.org/api/cve/{cve_id}"
+    requires_snapshot: true
+  nvd:
+    source_kind: json_api
+    canonical: false
+    plane: vulnerability_evidence
+    api_url: "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    requires_snapshot: true
+  ghsa:
+    source_kind: graphql_advisory
+    canonical: false
+    plane: vulnerability_evidence
+    requires_snapshot: true

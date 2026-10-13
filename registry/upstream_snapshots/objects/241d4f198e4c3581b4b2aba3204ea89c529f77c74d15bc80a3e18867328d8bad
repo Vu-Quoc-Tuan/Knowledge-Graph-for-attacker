@@ -1,0 +1,141 @@
+schema_version: 1
+vulnerabilities:
+  - vuln_id: "CVE-2024-44541"
+    title: "Reflected XSS in Fides via fides_description parameter"
+    description: "An unauthenticated attacker can execute arbitrary JavaScript in the context of the user session by supplying a crafted fides_description query parameter that is rendered in consent UI without sanitization."
+    published_at: "2024-09-05T00:00:00Z"
+    cwe_id: "CWE-79"
+    epistemic_status: "canonical"
+    product:
+      name: "Fides"
+      vendor: "Ethyca"
+    component:
+      name: "fides.js"
+      path: "clients/fides-js"
+    version_ranges:
+      - spec: "< 2.45.1"
+        status: "affected"
+    evidence:
+      - evidence_id: "EVD-158a62c668b6bf04"
+        kind: "advisory"
+        source_ref: "https://github.com/ethyca/fides/security/advisories/GHSA-xxxx"
+        source_hash: "sha256:158a62c668b6bf04f3d5d2304a063788f4b8d97f9d16037e09f5505bd7e662ec"
+        excerpt: "An unauthenticated query parameter fides_description is rendered directly into the HTML DOM without proper encoding in fides.js."
+    facts:
+      input_vector: "URL_QUERY"
+      input_parameter: "fides_description"
+      mechanism: "UNSAFE_HTML_RENDER"
+      impact: "SCRIPT_EXECUTION"
+      precondition: "CONSENT_MODAL_ENABLED"
+
+  - vuln_id: "CVE-2021-43798"
+    title: "Path Traversal in Grafana via plugin assets endpoint"
+    description: "Grafana versions 8.0.0 through 8.3.0 are vulnerable to directory traversal, allowing unauthorized access to local files via the plugin asset rendering route."
+    published_at: "2021-12-07T00:00:00Z"
+    cwe_id: "CWE-22"
+    epistemic_status: "canonical"
+    product:
+      name: "Grafana"
+      vendor: "Grafana Labs"
+    component:
+      name: "api_plugins"
+      path: "pkg/api/plugins.go"
+    version_ranges:
+      - spec: ">= 8.0.0, <= 8.3.0"
+        status: "affected"
+    evidence:
+      - evidence_id: "EVD-9f7f590cba6c8f34"
+        kind: "advisory"
+        source_ref: "https://github.com/grafana/grafana/security/advisories/GHSA-8pjx-jj86-j47p"
+        source_hash: "sha256:9f7f590cba6c8f341ce1ca89e243d7d58f2d39592c58515bb48b22441ccbdd1b"
+        excerpt: "The /public/plugins/<plugin-id>/ endpoint contains a directory traversal vulnerability allowing reading of arbitrary files from the filesystem."
+    facts:
+      input_vector: "URL_PATH"
+      input_parameter: "plugin_path"
+      mechanism: "UNSANITIZED_FILE_PATH_CONCAT"
+      impact: "ARBITRARY_FILE_READ"
+      precondition: "INSTALLED_PLUGIN_EXISTS"
+
+  - vuln_id: "CVE-2023-38646"
+    title: "Pre-authentication RCE in Metabase via H2 JDBC connection string"
+    description: "Metabase allows unauthenticated users to execute arbitrary commands by submitting a crafted database validation request containing SQL injection in H2 connection parameters."
+    published_at: "2023-07-20T00:00:00Z"
+    cwe_id: "CWE-89"
+    epistemic_status: "canonical"
+    product:
+      name: "Metabase"
+      vendor: "Metabase"
+    component:
+      name: "api_setup"
+      path: "api/session/properties"
+    version_ranges:
+      - spec: ">= 0.46.0, < 0.46.6.1"
+        status: "affected"
+    evidence:
+      - evidence_id: "EVD-aa7a3ede75499e10"
+        kind: "advisory"
+        source_ref: "https://github.com/metabase/metabase/security/advisories/GHSA-vmm4-m2hm-8874"
+        source_hash: "sha256:aa7a3ede75499e103b09ed247d733ac2f69c558bd4f8808eb4ee89af6f2adf4e"
+        excerpt: "The /api/setup/validate endpoint accepts an unauthenticated request to validate database connection details, allowing SQL execution via H2 JDBC connection string."
+    facts:
+      input_vector: "JSON_BODY"
+      input_parameter: "details.db"
+      mechanism: "UNSAFE_JDBC_CONNECTION_STRING"
+      impact: "CODE_EXECUTION"
+      precondition: "SETUP_TOKEN_ACCESSIBLE"
+
+  - vuln_id: "CVE-2023-28850"
+    title: "Server-Side Request Forgery in Nextcloud Server"
+    description: "Nextcloud server is vulnerable to Server-Side Request Forgery when processing remote avatar URLs received via custom headers."
+    published_at: "2023-04-18T00:00:00Z"
+    cwe_id: "CWE-918"
+    epistemic_status: "canonical"
+    product:
+      name: "Nextcloud Server"
+      vendor: "Nextcloud"
+    component:
+      name: "server_avatar"
+      path: "apps/dav/lib/Avatars/AvatarManager.php"
+    version_ranges:
+      - spec: "< 25.0.5"
+        status: "affected"
+    evidence:
+      - evidence_id: "EVD-6193e9ef3015e011"
+        kind: "advisory"
+        source_ref: "https://github.com/nextcloud/security-advisories/security/advisories/GHSA-m897-4w6w-37cg"
+        source_hash: "sha256:6193e9ef3015e011637f579783eec8df40a876e37986aa99e18189ccf858967e"
+        excerpt: "Nextcloud server fails to validate remote avatar URLs fetched via server headers, leading to server-side request forgery (SSRF)."
+    facts:
+      input_vector: "HTTP_HEADER"
+      input_parameter: "X-Forwarded-Host"
+      mechanism: "UNVALIDATED_REMOTE_FETCH"
+      impact: "INTERNAL_NETWORK_ACCESS"
+      precondition: "AVATAR_FEATURE_ENABLED"
+
+  - vuln_id: "CVE-2024-21626"
+    title: "Container Breakout via Leaked File Descriptor in runc"
+    description: "runc 1.0.0-rc93 through 1.1.11 leaks an internal file descriptor into the container execution context, allowing attackers to access host filesystem."
+    published_at: "2024-01-31T00:00:00Z"
+    cwe_id: "CWE-403"
+    epistemic_status: "canonical"
+    product:
+      name: "runc"
+      vendor: "OpenContainers"
+    component:
+      name: "libcontainer"
+      path: "libcontainer/process_linux.go"
+    version_ranges:
+      - spec: ">= 1.0.0-rc93, < 1.1.12"
+        status: "affected"
+    evidence:
+      - evidence_id: "EVD-8750ac0cb57d8782"
+        kind: "advisory"
+        source_ref: "https://github.com/opencontainers/runc/security/advisories/GHSA-xr7r-f8xq-vfvv"
+        source_hash: "sha256:8750ac0cb57d87821c364717c315cf1d7c81ac2078c1dffc460faf816e60717b"
+        excerpt: "runc was found to leak file descriptors into the guest container process, allowing escaping the container through /proc/self/fd/7."
+    facts:
+      input_vector: "PROCESS_WORKING_DIRECTORY"
+      input_parameter: "cwd"
+      mechanism: "LEAKED_HOST_FILE_DESCRIPTOR"
+      impact: "HOST_FILESYSTEM_ACCESS"
+      precondition: "CONTAINER_EXEC_INVOKED"

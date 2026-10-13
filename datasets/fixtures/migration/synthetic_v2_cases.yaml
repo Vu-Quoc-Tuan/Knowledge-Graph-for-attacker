@@ -1,0 +1,33 @@
+schema_version: 1
+cases:
+  - id: SYNTH-MULTI-CWE-CONFLICT
+    vulnerability_id: CVE-2099-0001
+    assertions:
+      - source_id: NVD-CVE-2099-0001
+        cwe_id: CWE-611
+        status: REPORTED
+      - source_id: GHSA-synthetic-1
+        cwe_id: CWE-827
+        status: REPORTED
+    expected: two_assertions_remain_distinct
+  - id: SYNTH-MISSING-EVIDENCE
+    vulnerability_id: CVE-2099-0002
+    assertion:
+      cwe_id: CWE-79
+      status: EXTRACTED
+      evidence_spans: []
+    expected: reject_persistence
+  - id: SYNTH-CHAIN
+    occurrences: [OCC-SYNTH-1, OCC-SYNTH-2]
+    relation: ENABLES
+    expected: chained_scenario_only_with_occurrence_evidence
+  - id: SYNTH-COMPOSITE
+    occurrences: [OCC-SYNTH-3, OCC-SYNTH-4]
+    composition: ALL_OF
+    expected: composite_scenario
+  - id: SYNTH-BLOCKED-OOB
+    technique: TECH-OUT-OF-BAND
+    channel: CHANNEL-DNS
+    network_egress: unknown
+    result: BLOCKED
+    expected: applicability_unknown_and_no_global_negative_update

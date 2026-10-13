@@ -1,0 +1,32 @@
+version: 1
+heuristic_only: true
+modalities:
+  explicit_identifier: 1.0
+  structured_cwe: 1.0
+  rule_text: 0.45
+  lexical: 0.35
+  patch_diff: 0.90
+thresholds:
+  min_relevance: 0.70
+  min_evidence_coverage: 0.15
+reranker_weights:
+  same_weakness: 0.35
+  adjacent_weakness: 0.15
+  same_technique: 0.20
+  same_context: 0.15
+  graph_similarity: 0.15
+  same_capec_neighborhood: 0.10
+  same_patch_pattern: 0.15
+  shared_patch_pattern: 0.10
+reasoner_baselines:
+  context_transfer:
+    relevance: 0.65
+    evidence_coverage: 0.40
+  inheritance:
+    relevance: 0.70
+    evidence_coverage: 0.45
+    historical_support: 0.50
+  analogy:
+    max_relevance: 0.85
+    base_relevance: 0.45
+    evidence_coverage: 0.45

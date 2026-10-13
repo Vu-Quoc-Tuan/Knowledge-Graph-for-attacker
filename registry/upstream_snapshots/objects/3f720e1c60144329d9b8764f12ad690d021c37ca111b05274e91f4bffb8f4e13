@@ -1,0 +1,3 @@
+# Testing for SQL Injection
+
+Verify whether user-supplied input alters SQL syntax execution through error, boolean differential, or time delays.

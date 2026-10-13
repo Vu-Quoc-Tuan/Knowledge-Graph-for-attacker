@@ -1,0 +1,1 @@
+{"cveMetadata": {"cveId": "CVE-2026-99123", "state": "PUBLISHED"}, "containers": {"cna": {"title": "Vulnerability CVE-2026-99123", "descriptions": [{"lang": "en", "value": "Potential SQL injection under investigation"}], "problemTypes": []}}}

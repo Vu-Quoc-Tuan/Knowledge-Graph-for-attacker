@@ -1,0 +1,14 @@
+schema_version: 1
+weaknesses:
+  - weakness_id: "LAB-101"
+    namespace: "LAB"
+    name: "Prompt Injection in Large Language Models"
+    summary: "Xảy ra khi đầu vào của người dùng không được kiểm soát tốt trước khi đưa vào Prompts của mô hình AI, cho phép thay đổi hành vi dự kiến của mô hình."
+    lifecycle_status: "accepted"
+    source_type: "custom"
+    declared_by: "NCKH Laboratory"
+    created_at: "2026-07-30T12:00:00Z"
+    source_url: "https://lab.nckh.vn/LAB-101"
+    technologies:
+      - "Python"
+      - "OpenAI"

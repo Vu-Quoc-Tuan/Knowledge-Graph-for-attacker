@@ -1,0 +1,13 @@
+schema_version: 1
+subgraph:
+  cwe: 30
+  capec: 15
+  historical_cves: 30
+  techniques: 20
+  contexts: 30
+  evidence: 30
+  scenarios: 20
+  max_depth: 2
+  hard_max_nodes: 200
+  max_query_paths: 1000
+  timeout_ms: 3000
